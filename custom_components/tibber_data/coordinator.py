@@ -39,7 +39,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
     ) -> None:
         """Initialize the coordinator."""
         self.client = client
-        self.config_entry = config_entry
+        self.config_entry: ConfigEntry = config_entry
         self._oauth_session: Optional[OAuthSession] = None
 
         # Set up OAuth session from config entry data

@@ -255,7 +255,9 @@ class DeviceAttribute:
 
     def _validate_value_type(self) -> bool:
         """Validate that value matches the specified data type."""
-        type_map = {
+        from typing import Union
+
+        type_map: dict[str, Union[type, tuple[type, ...]]] = {
             "string": str,
             "number": (int, float),
             "boolean": bool,

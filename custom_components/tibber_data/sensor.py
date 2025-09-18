@@ -75,8 +75,15 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
         display_name = capability_data.get("displayName", capability_name.replace("_", " ").title()) if capability_data else capability_name.replace("_", " ").title()
 
         # Determine device class based on mapping or unit
-        device_class = mapping.get("device_class")
-        if not device_class:
+        device_class: Optional[SensorDeviceClass] = None
+        device_class_str = mapping.get("device_class")
+        if device_class_str:
+            # Convert string device class to enum
+            try:
+                device_class = SensorDeviceClass(device_class_str)
+            except ValueError:
+                device_class = self._infer_device_class_from_unit(unit)
+        else:
             device_class = self._infer_device_class_from_unit(unit)
 
         # Determine state class

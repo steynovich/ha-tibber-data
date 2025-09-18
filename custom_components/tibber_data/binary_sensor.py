@@ -83,8 +83,15 @@ class TibberDataAttributeBinarySensor(TibberDataAttributeEntity, BinarySensorEnt
         mapping = ATTRIBUTE_MAPPINGS.get(attribute_path, {})
 
         # Determine device class based on mapping or attribute path
-        device_class = mapping.get("device_class")
-        if not device_class:
+        device_class: Optional[BinarySensorDeviceClass] = None
+        device_class_str = mapping.get("device_class")
+        if device_class_str:
+            # Convert string device class to enum
+            try:
+                device_class = BinarySensorDeviceClass(device_class_str)
+            except ValueError:
+                device_class = self._infer_device_class_from_path(attribute_path)
+        else:
             device_class = self._infer_device_class_from_path(attribute_path)
 
         return BinarySensorEntityDescription(

@@ -12,6 +12,7 @@ from homeassistant.components.application_credentials import (
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.helpers import config_entry_oauth2_flow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -41,20 +42,20 @@ class OAuth2FlowHandler(
             "scope": "USER HOME",
         }
 
-    async def async_step_reauth(self, entry_data: Dict[str, Any]) -> FlowResult:
+    async def async_step_reauth(self, entry_data: Dict[str, Any]) -> ConfigFlowResult:
         """Perform reauth upon an API authentication error."""
         return await self.async_step_reauth_confirm()
 
     async def async_step_reauth_confirm(
         self, user_input: Optional[Dict[str, Any]] = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Confirm reauth dialog."""
         if user_input is None:
             return self.async_show_form(step_id="reauth_confirm")
 
         return await self.async_step_user()
 
-    async def async_oauth_create_entry(self, data: Dict[str, Any]) -> FlowResult:
+    async def async_oauth_create_entry(self, data: Dict[str, Any]) -> ConfigFlowResult:
         """Create an entry for Tibber Data."""
         session = async_get_clientsession(self.hass)
         client = TibberDataClient(session=session)
@@ -106,7 +107,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(
         self, user_input: Optional[Dict[str, Any]] = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Manage the options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
@@ -144,73 +145,17 @@ class TibberDataFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(
         self, user_input: Optional[Dict[str, Any]] = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle the initial step."""
-        # Check if we have application credentials configured
-        try:
-            from homeassistant.components.application_credentials import (
-                async_get_auth_implementation,
-            )
-
-            implementations = await async_get_auth_implementation(self.hass, DOMAIN)
-            if implementations:
-                # Redirect to OAuth2 flow
-                return await self.async_step_pick_implementation()
-
-        except Exception:
-            # Fall back to manual setup
-            pass
-
-        return self.async_show_form(
-            step_id="user",
-            description_placeholders={
-                "setup_url": "https://github.com/steynovich/ha-tibber-data#setup",
-                "docs_url": "https://developer.tibber.com/",
-            }
-        )
+        # Start OAuth2 flow - parent class will handle implementation selection
+        return await super().async_step_user(user_input)
 
     async def async_step_pick_implementation(
         self, user_input: Optional[Dict[str, Any]] = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle picking OAuth2 implementation."""
-        if user_input is not None:
-            # Start OAuth2 flow
-            from homeassistant.components.application_credentials import (
-                async_get_auth_implementation,
-            )
-
-            implementation = await async_get_auth_implementation(
-                self.hass, DOMAIN, user_input["implementation"]
-            )
-
-            if implementation:
-                oauth_flow = OAuth2FlowHandler()
-                oauth_flow.hass = self.hass
-                return await oauth_flow.async_step_pick_implementation(user_input)
-
-        # Show available implementations
-        try:
-            from homeassistant.components.application_credentials import (
-                async_get_auth_implementation,
-            )
-
-            implementations = await async_get_auth_implementation(self.hass, DOMAIN)
-
-            if not implementations:
-                return self.async_abort(reason="missing_credentials")
-
-            implementation_choices = {
-                impl.domain: impl.name for impl in implementations
-            }
-
-        except Exception:
-            return self.async_abort(reason="missing_credentials")
-
-        import voluptuous as vol
-
-        return self.async_show_form(
-            step_id="pick_implementation",
-            data_schema=vol.Schema({
-                vol.Required("implementation"): vol.In(implementation_choices)
-            }),
+        # The parent OAuth2 flow handler will handle this automatically
+        return self.async_create_entry(
+            title="Tibber Data",
+            data={"auth_implementation": DOMAIN},
         )

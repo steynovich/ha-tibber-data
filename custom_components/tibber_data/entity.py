@@ -305,7 +305,7 @@ class TibberDataAttributeEntity(TibberDataDeviceEntity):
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
         """Return extra state attributes."""
-        attributes = {}
+        attributes: Dict[str, Any] = {}
         device_data = self.device_data
 
         if not device_data:
