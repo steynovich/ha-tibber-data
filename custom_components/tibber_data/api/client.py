@@ -29,6 +29,7 @@ class TibberDataClient:
         self._session = session
         self._access_token = access_token
         self._oauth_session = oauth_session
+        self._session_owned = False  # Track if we created the session
 
     @property
     def session(self) -> aiohttp.ClientSession:
@@ -359,8 +360,8 @@ class TibberDataClient:
         return updated_devices
 
     async def close(self) -> None:
-        """Close the client session."""
-        if self._session and not self._session.closed:
+        """Close the client session if we own it."""
+        if self._session and not self._session.closed and self._session_owned:
             await self._session.close()
 
     async def __aenter__(self) -> TibberDataClient:

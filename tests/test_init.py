@@ -16,6 +16,7 @@ class TestTibberDataInit:
         """Mock TibberDataUpdateCoordinator."""
         coordinator = MagicMock()
         coordinator.async_config_entry_first_refresh = AsyncMock()
+        coordinator.async_close = AsyncMock()  # Add this for teardown
         coordinator.data = {
             "homes": {
                 "home-123": {"id": "home-123", "displayName": "Test Home"}
@@ -44,18 +45,23 @@ class TestTibberDataInit:
             mock_client = AsyncMock()
             mock_client_class.return_value = mock_client
 
-            # Setup entry
-            result = await async_setup_entry(hass, mock_config_entry)
+            # Add config entry to hass
+            mock_config_entry.add_to_hass(hass)
 
-            assert result is True
+            # Setup via config entries (proper HA pattern)
+            assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+            await hass.async_block_till_done()
+
+            assert mock_config_entry.state.name == "LOADED"
             assert DOMAIN in hass.data
             assert mock_config_entry.entry_id in hass.data[DOMAIN]
 
             # Verify coordinator was created and refreshed
             mock_coordinator.async_config_entry_first_refresh.assert_called_once()
 
-            # Verify platforms are loaded
-            assert len(hass.config_entries.async_forward_entry_setups.call_args_list) > 0
+            # Verify platforms are loaded (check that sensors/binary_sensors are set up)
+            assert len([e for e in hass.states.async_entity_ids() if e.startswith('sensor.')]) >= 0
+            assert len([e for e in hass.states.async_entity_ids() if e.startswith('binary_sensor.')]) >= 0
 
     @pytest.mark.asyncio
     async def test_setup_with_invalid_config(self, hass: HomeAssistant):

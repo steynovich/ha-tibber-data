@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Self
 from uuid import UUID
 
 
@@ -68,7 +68,7 @@ class OAuthSession:
             self.scopes = scopes
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> OAuthSession:
+    def from_dict(cls, data: Dict[str, Any]) -> Self:
         """Create OAuthSession from dictionary data."""
         scopes = data.get("scopes", [])
         if isinstance(scopes, str):
@@ -133,7 +133,7 @@ class TibberHome:
             raise ValueError("Time zone must be valid IANA timezone identifier")
 
     @classmethod
-    def from_api_data(cls, data: Dict[str, Any]) -> TibberHome:
+    def from_api_data(cls, data: Dict[str, Any]) -> Self:
         """Create TibberHome from API response data."""
         return cls(
             home_id=data["id"],
@@ -187,7 +187,7 @@ class DeviceCapability:
             raise ValueError("Last updated timestamp cannot be in the future")
 
     @classmethod
-    def from_api_data(cls, data: Dict[str, Any], device_id: str) -> DeviceCapability:
+    def from_api_data(cls, data: Dict[str, Any], device_id: str) -> Self:
         """Create DeviceCapability from API response data."""
         capability_id = f"{device_id}_{data['name']}"
 
@@ -266,7 +266,7 @@ class DeviceAttribute:
         return isinstance(self.value, expected_type)
 
     @classmethod
-    def from_api_data(cls, data: Dict[str, Any], device_id: str, attribute_path: str) -> DeviceAttribute:
+    def from_api_data(cls, data: Dict[str, Any], device_id: str, attribute_path: str) -> Self:
         """Create DeviceAttribute from API response data."""
         attribute_id = f"{device_id}_{attribute_path.replace('.', '_')}"
 
@@ -341,7 +341,7 @@ class TibberDevice:
         # last_seen is already properly typed as Optional[datetime]
 
     @classmethod
-    def from_api_data(cls, data: Dict[str, Any], home_id: str) -> TibberDevice:
+    def from_api_data(cls, data: Dict[str, Any], home_id: str) -> Self:
         """Create TibberDevice from API response data."""
         # Parse last_seen timestamp
         last_seen = None
