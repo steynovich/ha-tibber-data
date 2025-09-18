@@ -27,7 +27,7 @@
 Build a HACS-compatible Home Assistant integration that leverages the Tibber Data API to automatically discover and monitor IoT devices (EVs, chargers, thermostats, solar inverters, batteries) connected through Tibber platform. The integration must meet Platinum quality standards with OAuth2 authentication, full async operation, comprehensive testing, and automated HACS validation via GitHub Actions.
 
 ## Technical Context
-**Language/Version**: Python 3.11+
+**Language/Version**: Python 3.13+
 **Primary Dependencies**: Home Assistant Core, aiohttp, HACS framework
 **Storage**: Home Assistant entity registry, state machine
 **Testing**: pytest, Home Assistant test framework, pytest-homeassistant-custom-component

@@ -3,7 +3,7 @@
 Auto-generated from all feature plans. Last updated: 2025-09-18
 
 ## Active Technologies
-- Python 3.11+ (001-build-a-hacs)
+- Python 3.13+ (001-build-a-hacs)
 - Home Assistant Core, aiohttp, HACS framework (001-build-a-hacs)
 
 ## Project Structure

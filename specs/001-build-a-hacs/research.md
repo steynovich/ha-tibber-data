@@ -69,7 +69,7 @@
 ## Technical Architecture Decisions
 
 ### Language and Dependencies
-- **Python Version**: 3.11+ (Home Assistant compatibility)
+- **Python Version**: 3.13+ (Home Assistant compatibility)
 - **Core Dependencies**:
   - `homeassistant` (core platform)
   - `aiohttp` (async HTTP client)
