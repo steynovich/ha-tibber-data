@@ -1,0 +1,575 @@
+openapi: 3.1.0
+info:
+  title: Tibber Data API Integration Contracts
+  description: API contract specifications for Home Assistant Tibber Data integration
+  version: 1.0.0
+  contact:
+    name: Tibber Data Integration
+    url: https://data-api.tibber.com/docs/
+
+servers:
+  - url: https://data-api.tibber.com
+    description: Tibber Data API Production Server
+
+security:
+  - OAuth2: []
+
+paths:
+  /oauth2/authorize:
+    get:
+      summary: OAuth2 Authorization Endpoint
+      description: Initiate OAuth2 authorization code flow
+      parameters:
+        - name: client_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: OAuth2 client identifier
+        - name: redirect_uri
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uri
+          description: Callback URI for authorization code
+        - name: response_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [code]
+          description: OAuth2 response type
+        - name: scope
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Requested permission scopes
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+          description: CSRF protection state parameter
+        - name: code_challenge
+          in: query
+          required: true
+          schema:
+            type: string
+          description: PKCE code challenge
+        - name: code_challenge_method
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [S256]
+          description: PKCE code challenge method
+      responses:
+        '302':
+          description: Redirect to authorization page
+        '400':
+          description: Invalid request parameters
+
+  /oauth2/token:
+    post:
+      summary: OAuth2 Token Exchange
+      description: Exchange authorization code for access token
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - grant_type
+                - code
+                - redirect_uri
+                - client_id
+                - code_verifier
+              properties:
+                grant_type:
+                  type: string
+                  enum: [authorization_code]
+                code:
+                  type: string
+                  description: Authorization code from callback
+                redirect_uri:
+                  type: string
+                  format: uri
+                  description: Same redirect URI used in authorization
+                client_id:
+                  type: string
+                  description: OAuth2 client identifier
+                code_verifier:
+                  type: string
+                  description: PKCE code verifier
+      responses:
+        '200':
+          description: Successful token exchange
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Invalid request
+        '401':
+          description: Invalid client credentials
+
+  /oauth2/refresh:
+    post:
+      summary: Refresh Access Token
+      description: Refresh expired access token using refresh token
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - grant_type
+                - refresh_token
+                - client_id
+              properties:
+                grant_type:
+                  type: string
+                  enum: [refresh_token]
+                refresh_token:
+                  type: string
+                  description: Valid refresh token
+                client_id:
+                  type: string
+                  description: OAuth2 client identifier
+      responses:
+        '200':
+          description: Successful token refresh
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Invalid request
+        '401':
+          description: Invalid refresh token
+
+  /v1/homes:
+    get:
+      summary: List User Homes
+      description: Retrieve all homes associated with authenticated user
+      security:
+        - OAuth2: [USER, HOME]
+      responses:
+        '200':
+          description: List of user homes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Home'
+        '401':
+          description: Invalid or expired token
+        '403':
+          description: Insufficient permissions
+        '429':
+          description: Rate limit exceeded
+
+  /v1/homes/{homeId}:
+    get:
+      summary: Get Home Details
+      description: Retrieve detailed information for specific home
+      security:
+        - OAuth2: [HOME]
+      parameters:
+        - name: homeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique home identifier
+      responses:
+        '200':
+          description: Home details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Home'
+        '401':
+          description: Invalid or expired token
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: Home not found
+
+  /v1/homes/{homeId}/devices:
+    get:
+      summary: List Home Devices
+      description: Retrieve all devices associated with specific home
+      security:
+        - OAuth2: [HOME]
+      parameters:
+        - name: homeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique home identifier
+      responses:
+        '200':
+          description: List of home devices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Device'
+        '401':
+          description: Invalid or expired token
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: Home not found
+
+  /v1/homes/{homeId}/devices/{deviceId}:
+    get:
+      summary: Get Device Details
+      description: Retrieve detailed information for specific device
+      security:
+        - OAuth2: [HOME]
+      parameters:
+        - name: homeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique home identifier
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique device identifier
+      responses:
+        '200':
+          description: Device details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DeviceDetails'
+        '401':
+          description: Invalid or expired token
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: Device not found
+
+  /v1/homes/{homeId}/devices/{deviceId}/history:
+    get:
+      summary: Get Device History (Preview)
+      description: Retrieve historical data for device capabilities
+      security:
+        - OAuth2: [HOME]
+      parameters:
+        - name: homeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique home identifier
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique device identifier
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Start time for historical data
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: End time for historical data
+        - name: resolution
+          in: query
+          schema:
+            type: string
+            enum: [HOURLY, DAILY]
+          description: Data resolution granularity
+      responses:
+        '200':
+          description: Historical device data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HistoryEntry'
+        '401':
+          description: Invalid or expired token
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: Device not found
+
+components:
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: /oauth2/authorize
+          tokenUrl: /oauth2/token
+          refreshUrl: /oauth2/refresh
+          scopes:
+            USER: Access to user information
+            HOME: Access to user's home data and information
+
+  schemas:
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - expires_in
+        - refresh_token
+        - scope
+      properties:
+        access_token:
+          type: string
+          description: OAuth2 access token
+        token_type:
+          type: string
+          enum: [Bearer]
+          description: Token type
+        expires_in:
+          type: integer
+          description: Token lifetime in seconds
+        refresh_token:
+          type: string
+          description: OAuth2 refresh token
+        scope:
+          type: string
+          description: Granted scopes
+
+    Home:
+      type: object
+      required:
+        - id
+        - displayName
+        - timeZone
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique home identifier
+        displayName:
+          type: string
+          description: User-friendly home name
+        address:
+          type: object
+          properties:
+            street:
+              type: string
+            city:
+              type: string
+            postalCode:
+              type: string
+            country:
+              type: string
+        timeZone:
+          type: string
+          description: IANA timezone identifier
+        deviceCount:
+          type: integer
+          description: Number of devices in this home
+
+    Device:
+      type: object
+      required:
+        - id
+        - externalId
+        - type
+        - name
+        - online
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique device identifier
+        externalId:
+          type: string
+          description: Third-party system identifier
+        type:
+          type: string
+          enum: [EV, CHARGER, THERMOSTAT, SOLAR_INVERTER, BATTERY, HEAT_PUMP]
+          description: Device type classification
+        manufacturer:
+          type: string
+          description: Device manufacturer
+        model:
+          type: string
+          description: Device model identifier
+        name:
+          type: string
+          description: User-assigned device name
+        online:
+          type: boolean
+          description: Current connectivity status
+        lastSeen:
+          type: string
+          format: date-time
+          description: Last communication timestamp
+
+    DeviceDetails:
+      allOf:
+        - $ref: '#/components/schemas/Device'
+        - type: object
+          properties:
+            identity:
+              $ref: '#/components/schemas/DeviceIdentity'
+            attributes:
+              $ref: '#/components/schemas/DeviceAttributes'
+            capabilities:
+              type: array
+              items:
+                $ref: '#/components/schemas/DeviceCapability'
+
+    DeviceIdentity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalId:
+          type: string
+        name:
+          type: string
+        manufacturer:
+          type: string
+        model:
+          type: string
+
+    DeviceAttributes:
+      type: object
+      properties:
+        connectivity:
+          type: object
+          properties:
+            online:
+              type: boolean
+            lastSeen:
+              type: string
+              format: date-time
+            signalStrength:
+              type: integer
+              minimum: 0
+              maximum: 100
+        firmware:
+          type: object
+          properties:
+            version:
+              type: string
+            updateAvailable:
+              type: boolean
+            lastUpdated:
+              type: string
+              format: date-time
+
+    DeviceCapability:
+      type: object
+      required:
+        - name
+        - displayName
+        - value
+        - unit
+        - lastUpdated
+      properties:
+        name:
+          type: string
+          description: Capability identifier
+        displayName:
+          type: string
+          description: User-friendly capability name
+        value:
+          oneOf:
+            - type: number
+            - type: string
+            - type: boolean
+          description: Current capability value
+        unit:
+          type: string
+          description: Measurement unit
+        lastUpdated:
+          type: string
+          format: date-time
+          description: Last value update timestamp
+        minValue:
+          type: number
+          description: Minimum possible value
+        maxValue:
+          type: number
+          description: Maximum possible value
+        precision:
+          type: integer
+          description: Decimal precision for display
+
+    HistoryEntry:
+      type: object
+      required:
+        - timestamp
+        - capabilities
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Data point timestamp
+        capabilities:
+          type: object
+          additionalProperties:
+            oneOf:
+              - type: number
+              - type: string
+              - type: boolean
+          description: Capability values at timestamp
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details
