@@ -36,14 +36,19 @@ class TestOAuth2AuthContract:
         )
 
         # Should generate proper authorization URL
+        from urllib.parse import urlparse, parse_qs
+
+        parsed_url = urlparse(auth_url)
+        query_params = parse_qs(parsed_url.query)
+
         assert "data-api.tibber.com/oauth2/authorize" in auth_url
-        assert f"client_id={client_id}" in auth_url
-        assert f"redirect_uri={redirect_uri}" in auth_url
-        assert f"state={state}" in auth_url
-        assert f"code_challenge={code_challenge}" in auth_url
-        assert "response_type=code" in auth_url
-        assert "code_challenge_method=S256" in auth_url
-        assert "scope=USER+HOME" in auth_url
+        assert query_params["client_id"][0] == client_id
+        assert query_params["redirect_uri"][0] == redirect_uri
+        assert query_params["state"][0] == state
+        assert query_params["code_challenge"][0] == code_challenge
+        assert query_params["response_type"][0] == "code"
+        assert query_params["code_challenge_method"][0] == "S256"
+        assert query_params["scope"][0] == "USER HOME"
 
     @pytest.mark.asyncio
     async def test_authorization_endpoint_validation(self, client, mock_session):
