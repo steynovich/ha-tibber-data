@@ -1,0 +1,51 @@
+{
+  "config": {
+    "step": {
+      "pick_implementation": {
+        "title": "Choose Authentication Method",
+        "description": "Choose how you want to authenticate with Tibber Data API.",
+        "data": {
+          "implementation": "Authentication Method"
+        }
+      },
+      "user": {
+        "title": "Set up Tibber Data",
+        "description": "To connect Tibber Data, you need to set up OAuth2 application credentials first.\n\n1. Go to [Tibber Developer Console]({docs_url})\n2. Contact Tibber support to register your OAuth2 client\n3. Add the application credentials in Home Assistant Settings > Devices & Services > Add Integration > Application Credentials\n4. Return here to complete setup\n\nFor detailed instructions, see: {setup_url}",
+        "data": {}
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate with Tibber Data",
+        "description": "Your Tibber Data authentication has expired. Please reauthenticate to continue using the integration.",
+        "data": {}
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Tibber Data API",
+      "invalid_auth": "Invalid authentication credentials",
+      "missing_credentials": "No OAuth2 credentials configured. Please set up application credentials first.",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "Account is already configured",
+      "missing_credentials": "No OAuth2 application credentials configured",
+      "cannot_connect": "Failed to connect to Tibber Data API",
+      "oauth_error": "OAuth2 authentication error",
+      "reauth_successful": "Reauthentication was successful"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Tibber Data Options",
+        "description": "Configure options for Tibber Data integration.",
+        "data": {
+          "update_interval": "Update interval (seconds)",
+          "include_offline_devices": "Include offline devices"
+        }
+      }
+    }
+  },
+  "application_credentials": {
+    "description": "Follow these steps to create OAuth2 credentials for Tibber Data:\n\n1. Go to [Tibber Developer Console]({oauth_consent_url})\n2. Contact Tibber support via chat or email to register your OAuth2 client application\n3. Provide them with:\n   - Application name (e.g., 'Home Assistant Integration')\n   - Redirect URI: `{redirect_uri}`\n   - Required scopes: USER, HOME\n4. Save the Client ID they provide (no client secret needed)\n\nFor more information, see the [Tibber Data API documentation]({more_info_url})."
+  }
+}

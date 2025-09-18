@@ -58,13 +58,34 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
     def _setup_oauth_session(self) -> None:
         """Set up OAuth session from config entry data."""
         try:
+            # Handle both old format (custom) and new format (Home Assistant OAuth2)
+            access_token = self.config_entry.data.get("access_token") or self.config_entry.data.get(CONF_ACCESS_TOKEN)
+            refresh_token = self.config_entry.data.get("refresh_token") or self.config_entry.data.get(CONF_REFRESH_TOKEN)
+
+            if not access_token or not refresh_token:
+                raise ValueError("Missing OAuth2 tokens in config entry")
+
+            # Handle expires_at from Home Assistant OAuth2 format
+            expires_at = 0
+            if "expires_at" in self.config_entry.data:
+                expires_at = self.config_entry.data["expires_at"]
+            elif CONF_EXPIRES_AT in self.config_entry.data:
+                expires_at = self.config_entry.data[CONF_EXPIRES_AT]
+
+            # Handle scopes
+            scopes = self.config_entry.data.get("scope", "USER HOME")
+            if isinstance(scopes, str):
+                scopes = scopes.split()
+            elif not scopes:
+                scopes = ["USER", "HOME"]
+
             self._oauth_session = OAuthSession(
                 session_id=self.config_entry.entry_id,
                 user_id=self.config_entry.unique_id or "unknown",
-                access_token=self.config_entry.data[CONF_ACCESS_TOKEN],
-                refresh_token=self.config_entry.data[CONF_REFRESH_TOKEN],
-                expires_at=self.config_entry.data.get(CONF_EXPIRES_AT, 0),
-                scopes=self.config_entry.data.get("scopes", ["USER", "HOME"])
+                access_token=access_token,
+                refresh_token=refresh_token,
+                expires_at=expires_at,
+                scopes=scopes
             )
 
             # Set the OAuth session in the client
@@ -188,7 +209,12 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             raise UpdateFailed("No OAuth session available")
 
         try:
-            client_id = self.config_entry.data[CONF_CLIENT_ID]
+            # Handle client_id from different OAuth2 formats
+            client_id = self.config_entry.data.get("client_id") or self.config_entry.data.get(CONF_CLIENT_ID)
+            if not client_id:
+                # For Home Assistant OAuth2, we might not have direct access to client_id
+                # In this case, we should trigger a reauth flow instead
+                raise UpdateFailed("Cannot refresh token - client ID not available")
             refresh_response = await self.client.refresh_access_token(
                 client_id=client_id,
                 refresh_token=self._oauth_session.refresh_token
@@ -202,11 +228,18 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 scopes=refresh_response.get("scope", "").split() if refresh_response.get("scope") else None
             )
 
-            # Update config entry data
+            # Update config entry data (handle both formats)
             new_data = dict(self.config_entry.data)
-            new_data[CONF_ACCESS_TOKEN] = self._oauth_session.access_token
-            new_data[CONF_REFRESH_TOKEN] = self._oauth_session.refresh_token
-            new_data[CONF_EXPIRES_AT] = self._oauth_session.expires_at
+
+            # Use the same keys that were in the original data
+            if "access_token" in new_data:
+                new_data["access_token"] = self._oauth_session.access_token
+                new_data["refresh_token"] = self._oauth_session.refresh_token
+                new_data["expires_at"] = self._oauth_session.expires_at
+            else:
+                new_data[CONF_ACCESS_TOKEN] = self._oauth_session.access_token
+                new_data[CONF_REFRESH_TOKEN] = self._oauth_session.refresh_token
+                new_data[CONF_EXPIRES_AT] = self._oauth_session.expires_at
 
             self.hass.config_entries.async_update_entry(
                 self.config_entry,
