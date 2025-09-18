@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
 from homeassistant.config_entries import ConfigEntry
@@ -11,7 +11,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .api.client import TibberDataClient
-from .api.models import OAuthSession, TibberHome, TibberDevice
+from .api.models import OAuthSession, TibberDevice
 from .const import (
     DOMAIN,
     DATA_HOMES,

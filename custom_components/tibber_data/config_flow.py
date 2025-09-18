@@ -7,17 +7,14 @@ from typing import Any, Dict, Optional
 from homeassistant import config_entries
 from homeassistant.components.application_credentials import (
     AuthImplementation,
-    AuthorizationServer,
-    async_import_client_credential,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.data_entry_flow import FlowResult
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.helpers import config_entry_oauth2_flow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api.client import TibberDataClient
-from .const import DOMAIN, OAUTH2_AUTHORIZE_URL, OAUTH2_TOKEN_URL
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 

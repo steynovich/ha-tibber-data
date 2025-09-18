@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, MANUFACTURER, DEVICE_IDENTIFIERS
+from .const import DOMAIN, MANUFACTURER
 from .coordinator import TibberDataUpdateCoordinator
 
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
@@ -18,7 +18,7 @@ class OAuthSession:
     token_type: str = "Bearer"
     expires_at: int = 0
     scopes: List[str] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     last_refreshed: Optional[datetime] = None
 
     def __post_init__(self) -> None:
@@ -42,14 +42,14 @@ class OAuthSession:
         """Check if the access token is expired."""
         if self.expires_at == 0:
             return False
-        return datetime.utcnow().timestamp() >= self.expires_at
+        return datetime.now(timezone.utc).timestamp() >= self.expires_at
 
     @property
     def needs_refresh(self, threshold_seconds: int = 600) -> bool:
         """Check if token should be refreshed (within threshold of expiry)."""
         if self.expires_at == 0:
             return False
-        return datetime.utcnow().timestamp() >= (self.expires_at - threshold_seconds)
+        return datetime.now(timezone.utc).timestamp() >= (self.expires_at - threshold_seconds)
 
     def update_tokens(
         self,
@@ -61,8 +61,8 @@ class OAuthSession:
         """Update token information after refresh."""
         self.access_token = access_token
         self.refresh_token = refresh_token
-        self.expires_at = int(datetime.utcnow().timestamp() + expires_in)
-        self.last_refreshed = datetime.utcnow()
+        self.expires_at = int(datetime.now(timezone.utc).timestamp() + expires_in)
+        self.last_refreshed = datetime.now(timezone.utc)
 
         if scopes is not None:
             self.scopes = scopes
@@ -82,7 +82,7 @@ class OAuthSession:
             token_type=data.get("token_type", "Bearer"),
             expires_at=data.get("expires_at", 0),
             scopes=scopes,
-            created_at=datetime.fromisoformat(data.get("created_at", datetime.utcnow().isoformat())),
+            created_at=datetime.fromisoformat(data.get("created_at", datetime.now(timezone.utc).isoformat())),
             last_refreshed=datetime.fromisoformat(data["last_refreshed"]) if data.get("last_refreshed") else None
         )
 
@@ -183,7 +183,7 @@ class DeviceCapability:
                 raise ValueError(f"Value {self.value} is above maximum {self.max_value}")
 
         # Validate last_updated is not in the future
-        if self.last_updated > datetime.utcnow():
+        if self.last_updated > datetime.now(timezone.utc):
             raise ValueError("Last updated timestamp cannot be in the future")
 
     @classmethod
@@ -255,8 +255,6 @@ class DeviceAttribute:
 
     def _validate_value_type(self) -> bool:
         """Validate that value matches the specified data type."""
-        from typing import Union
-
         type_map: dict[str, Union[type, tuple[type, ...]]] = {
             "string": str,
             "number": (int, float),
@@ -273,7 +271,7 @@ class DeviceAttribute:
         attribute_id = f"{device_id}_{attribute_path.replace('.', '_')}"
 
         # Parse timestamp if it's a string
-        last_updated = data.get("lastUpdated", datetime.utcnow())
+        last_updated = data.get("lastUpdated", datetime.now(timezone.utc))
         if isinstance(last_updated, str):
             last_updated = datetime.fromisoformat(last_updated.replace("Z", "+00:00"))
 
@@ -318,8 +316,8 @@ class TibberDevice:
     manufacturer: Optional[str] = None
     model: Optional[str] = None
     last_seen: Optional[datetime] = None
-    capabilities: List[DeviceCapability] = field(default_factory=list)
-    attributes: List[DeviceAttribute] = field(default_factory=list)
+    capabilities: List["DeviceCapability"] = field(default_factory=list)
+    attributes: List["DeviceAttribute"] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Validate TibberDevice data."""
@@ -340,9 +338,7 @@ class TibberDevice:
         if self.device_type not in valid_types:
             raise ValueError(f"Device type must be one of: {valid_types}")
 
-        # Validate last_seen timestamp
-        if self.last_seen and not isinstance(self.last_seen, datetime):
-            raise ValueError("Last seen must be a valid datetime")
+        # last_seen is already properly typed as Optional[datetime]
 
     @classmethod
     def from_api_data(cls, data: Dict[str, Any], home_id: str) -> TibberDevice:
@@ -375,7 +371,8 @@ class TibberDevice:
             for attr_path, attr_data in data["attributes"].items():
                 if isinstance(attr_data, dict):
                     for sub_attr, sub_value in attr_data.items():
-                        full_path = f"{attr_path}.{sub_attr}"
+                        # Type hints for clarity - sub_attr is str, sub_value is Any
+                        full_path: str = f"{attr_path}.{sub_attr}"
                         attribute = DeviceAttribute.from_api_data(
                             {"value": sub_value, "displayName": sub_attr.replace("_", " ").title()},
                             device.device_id,
@@ -398,7 +395,7 @@ class TibberDevice:
 
         # If we have a last_seen timestamp, check if it's recent (within 5 minutes)
         if self.last_seen:
-            time_threshold = datetime.utcnow().timestamp() - 300  # 5 minutes ago
+            time_threshold = datetime.now(timezone.utc).timestamp() - 300  # 5 minutes ago
             return self.last_seen.timestamp() > time_threshold
 
         # If no last_seen data, trust online_status
@@ -428,6 +425,6 @@ class TibberDevice:
         capability = self.get_capability(name)
         if capability:
             capability.value = value
-            capability.last_updated = last_updated or datetime.utcnow()
+            capability.last_updated = last_updated or datetime.now(timezone.utc)
             return True
         return False

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict
+from typing import Dict
 
 from homeassistant.components.application_credentials import (
     AuthorizationServer,
@@ -10,7 +10,7 @@ from homeassistant.components.application_credentials import (
 )
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, OAUTH2_AUTHORIZE_URL, OAUTH2_TOKEN_URL
+from .const import OAUTH2_AUTHORIZE_URL, OAUTH2_TOKEN_URL
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -1,7 +1,6 @@
 """Tibber Data API client with OAuth2 authentication."""
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import secrets
 import urllib.parse
@@ -9,7 +8,6 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import aiohttp
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .models import OAuthSession, TibberHome, TibberDevice
 
