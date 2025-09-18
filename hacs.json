@@ -3,6 +3,5 @@
   "content_in_root": false,
   "filename": "tibber_data",
   "country": ["NO", "SE", "DK", "DE", "NL"],
-  "render_readme": true,
-  "iot_class": "Cloud Polling"
+  "render_readme": true
 }

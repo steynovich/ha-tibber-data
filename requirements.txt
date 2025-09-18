@@ -1,5 +1,5 @@
 # Development dependencies
-pytest==7.4.3
-pytest-homeassistant-custom-component==0.13.86
-pytest-asyncio==0.21.1
-mypy==1.7.1
+pytest==8.3.3
+pytest-homeassistant-custom-component==0.13.195
+pytest-asyncio==0.24.0
+mypy==1.18.1
