@@ -10,8 +10,27 @@ class TestOAuth2AuthContract:
     @pytest.fixture
     def mock_session(self):
         """Mock aiohttp client session."""
+        from unittest.mock import AsyncMock, MagicMock
+        import asyncio
+
+        class MockAsyncContextManager:
+            def __init__(self, return_value):
+                self.return_value = return_value
+
+            async def __aenter__(self):
+                return self.return_value
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
         session = AsyncMock()
-        session.get = AsyncMock()
+        # Store the context manager creator on the session for tests to use
+        session._mock_context_manager = MockAsyncContextManager
+        # Override the request method to return the context manager directly
+        def mock_request(*args, **kwargs):
+            return session._current_context_manager
+
+        session.request = mock_request
         return session
 
     @pytest.fixture
@@ -60,7 +79,8 @@ class TestOAuth2AuthContract:
             "error": "invalid_request",
             "error_description": "Missing required parameter: client_id"
         })
-        mock_session.get.return_value.__aenter__.return_value = mock_response
+        # Set up the session.request to return our async context manager
+        mock_session._current_context_manager = mock_session._mock_context_manager(mock_response)
 
         # Should handle missing required parameters
         with pytest.raises(ValueError, match="Missing required parameter"):
