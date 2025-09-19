@@ -129,7 +129,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 # Convert capabilities to the expected format
                 capabilities = []
                 for capability in device.capabilities:
-                    cap_data = {
+                    cap_data: Dict[str, Any] = {
                         "name": capability.name,
                         "displayName": capability.display_name,
                         "value": capability.value,
@@ -320,7 +320,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 # Convert device back to the expected format (same as _async_update_data)
                 capabilities = []
                 for capability in updated_device.capabilities:
-                    cap_data = {
+                    cap_data: Dict[str, Any] = {
                         "name": capability.name,
                         "displayName": capability.display_name,
                         "value": capability.value,

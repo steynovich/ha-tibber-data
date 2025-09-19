@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2025-01-20
+
 ### Fixed
+- Fixed string sensor detection by preserving availableValues field from API responses
+- String sensors like `connector.status` are now correctly identified as text sensors instead of numeric
+- String sensor values are now capitalized for better display (e.g., "connected" → "Connected")
+- Fixed mypy type errors by adding proper type annotations for availableValues field
 - Improved home display name fallback logic to use unique identifiers instead of static "Tibber Home Name"
 - Enhanced API compliance by validating against official Tibber Data API specification
 - Fixed home name parsing to prioritize official API format "info.name" from Tibber Data API playground
@@ -17,14 +23,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed area names not updating when home names change in Tibber - now automatically updates device areas
 
 ### Added
+- TibberDataStringSensor class for proper handling of enumerated string values
+- availableValues field to DeviceCapability model to preserve enum options from API
+- Comprehensive test coverage for string sensor detection and value formatting
 - Automatic device area updates when Tibber home names change
 - Hub device name updates when home names change in Tibber API
 - Debug logging for home name changes and device area updates
 
 ### Changed
+- String sensors now display capitalized values for improved readability
+- Coordinator preserves availableValues when processing API capability responses
 - Hub device names now include home name from API (e.g., "My House Hub" instead of generic name)
 - Hub device model updated to "Tibber Home Hub" for better identification
 - Code cleanup: removed debug logging, simplified logic, improved readability
+
+### Technical
+- Enhanced DeviceCapability model with Optional[List[str]] availableValues field
+- Updated coordinator data processing to maintain API response fidelity
+- Added explicit Dict[str, Any] type annotations to resolve mypy type checking
+- All tests pass with comprehensive coverage for new string sensor functionality
 
 ## [1.0.0] - 2025-01-19
 
