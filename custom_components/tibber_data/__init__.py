@@ -57,11 +57,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Still proceed with setup - coordinator will retry
         pass
 
+    # Register devices in device registry first (before platforms)
+    # This ensures hub devices exist before entities try to reference them
+    await _async_register_devices(hass, coordinator, entry)
+
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    # Register devices in device registry
-    await _async_register_devices(hass, coordinator, entry)
 
     # Register cleanup listener
     entry.async_on_unload(
