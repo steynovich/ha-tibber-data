@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Improved home display name fallback logic to use unique identifiers instead of static "Tibber Home Name"
 - Enhanced API compliance by validating against official Tibber Data API specification
-- Fixed home name parsing to handle both API response formats (direct "name" and "info.name")
+- Fixed home name parsing to prioritize official API format "info.name" from Tibber Data API playground
+- Maintained fallback compatibility with test data format for comprehensive coverage
 - Enhanced area assignment logic to use only actual home names from Tibber homes API
 - Removed all hardcoded fallback names, relying exclusively on API-provided home names
 

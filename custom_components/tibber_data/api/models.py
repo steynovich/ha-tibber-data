@@ -143,15 +143,15 @@ class TibberHome:
     @classmethod
     def from_api_data(cls, data: Dict[str, Any]) -> Self:
         """Create TibberHome from API response data."""
-        # Handle both API response formats:
-        # 1. Direct name field: {"name": "My Home", ...}
-        # 2. API spec format: {"info": {"name": "My Home"}, ...}
-        display_name = data.get("name")  # Try direct name first
+        # Handle API response format according to official playground documentation:
+        # Real API format: {"info": {"name": "My Home"}, ...}
+        # Test data format: {"name": "My Home", ...} (for compatibility)
+        info = data.get("info", {})
+        display_name = info.get("name")  # Try API spec format first
 
         if not display_name:
-            # Try API specification format: info.name
-            info = data.get("info", {})
-            display_name = info.get("name")
+            # Fallback to test data format for compatibility
+            display_name = data.get("name")
 
         # If still no name available, create a fallback using home ID
         if not display_name:
