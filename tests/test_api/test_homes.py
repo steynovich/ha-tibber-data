@@ -50,33 +50,13 @@ class TestHomesContract:
             "homes": [
                 {
                     "id": "12345678-1234-1234-1234-123456789012",
-                    "externalId": "external_home_001",
-                    "info": {
-                        "name": "My Home",
-                        "brand": "Tibber"
-                    },
-                    "address": {
-                        "street": "123 Main St",
-                        "city": "Oslo",
-                        "postalCode": "0150",
-                        "country": "NO"
-                    },
+                    "name": "My Home",
                     "timeZone": "Europe/Oslo",
                     "deviceCount": 3
                 },
                 {
                     "id": "87654321-4321-4321-4321-210987654321",
-                    "externalId": "external_home_002",
-                    "info": {
-                        "name": "Summer House",
-                        "brand": "Tibber"
-                    },
-                    "address": {
-                        "street": "456 Lake Rd",
-                        "city": "Bergen",
-                        "postalCode": "5020",
-                        "country": "NO"
-                    },
+                    "name": "Summer House",
                     "timeZone": "Europe/Oslo",
                     "deviceCount": 1
                 }
@@ -93,11 +73,9 @@ class TestHomesContract:
 
         home1 = homes[0]
         assert home1["id"] == "12345678-1234-1234-1234-123456789012"
-        assert home1["externalId"] == "external_home_001"
-        assert home1["info"]["name"] == "My Home"
+        assert home1["name"] == "My Home"
         assert home1["timeZone"] == "Europe/Oslo"
         assert home1["deviceCount"] == 3
-        assert "address" in home1
 
         # Verify correct request was made
         # Note: We can't easily assert on the mock_request call since it's a custom function
