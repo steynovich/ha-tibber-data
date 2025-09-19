@@ -124,7 +124,7 @@ class TestTibberDataBinarySensor:
         }
 
         entities = []
-        async def mock_async_add_entities(new_entities, update_before_add=True):
+        def mock_async_add_entities(new_entities, update_before_add=True):
             entities.extend(new_entities)
 
         # Setup binary sensor platform
