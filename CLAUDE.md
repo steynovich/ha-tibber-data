@@ -93,4 +93,5 @@ pytest tests/test_coordinator.py # Test data coordinator
 
 <!-- MANUAL ADDITIONS START -->
 API documentation link https://data-api.tibber.com/docs/
+API specifications https://data-api.tibber.com/openapi/v1.json
 <!-- MANUAL ADDITIONS END -->

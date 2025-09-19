@@ -22,9 +22,26 @@ A HACS-compatible Home Assistant integration that provides access to the Tibber 
 
 ## Prerequisites
 
-- **Tibber Account**: You need an active Tibber account with devices connected through the Tibber platform
-- **Tibber Data API Access**: Your account must have access to the Tibber Data API
+- **Tibber Account**: You need an active Tibber account
+- **Connected Devices**: You must have IoT devices connected through the Tibber platform (EVs, EV chargers, thermostats, solar inverters, etc.)
+- **Tibber Data API Access**: Your account must have access to the Tibber Data API (contact Tibber support if unsure)
 - **Home Assistant**: Running Home Assistant 2023.1 or later with HACS installed
+
+### ⚠️ **Important Notes About Tibber Data API**
+
+The Tibber Data API is **different** from the regular Tibber GraphQL API. It requires:
+
+1. **Special API Access**: Not all Tibber customers automatically have Data API access
+2. **Connected Devices**: You must have devices connected through Tibber's IoT platform
+3. **Device Categories**: Supported devices include:
+   - Electric Vehicles (EVs) with Tibber integration
+   - EV Chargers connected to Tibber
+   - Smart Thermostats
+   - Solar Inverters
+   - Battery Storage Systems
+   - Heat Pumps
+
+**If you only have a regular Tibber electricity subscription without connected IoT devices, this integration will not work.**
 
 ## Installation
 
@@ -52,7 +69,12 @@ Before configuring the integration, you need to register an OAuth2 application w
      - `email` (Email address)
      - `offline_access` (Refresh token support)
      - `data-api-user-read` (User data access)
-     - `data-api-homes-read` (Homes and device data access)
+     - `data-api-homes-read` (Homes data access)
+     - `data-api-vehicles-read` (Electric vehicle data access)
+     - `data-api-chargers-read` (EV charger data access)
+     - `data-api-thermostats-read` (Thermostat data access)
+     - `data-api-energy-systems-read` (Battery storage and energy system data access)
+     - `data-api-inverters-read` (Solar inverter data access)
 4. Save your **Client ID** - you'll need this for Home Assistant
 
 #### Add Credentials to Home Assistant
@@ -147,21 +169,48 @@ automation:
 - Verify the Client ID is correct
 - Ensure you selected "Tibber Data" when creating the application credential
 
-#### "Authentication failed"
-- Your OAuth2 tokens may have expired - try re-authenticating
-- Go to the integration settings and click "Configure"
-- Complete the OAuth2 flow again
+#### "Authentication failed" or "Invalid request" during OAuth2 flow
+- **PKCE Implementation**: This integration automatically includes PKCE (Proof Key for Code Exchange) support required by Tibber
+  - No manual configuration needed - PKCE parameters are added automatically
+  - If you still see "invalid request" errors, the issue is likely with client registration
+- **Check Redirect URI**: Ensure your OAuth2 client is configured with the exact redirect URI:
+  - For Home Assistant Cloud: `https://my.home-assistant.io/redirect/oauth`
+  - For Local Installation: `https://YOUR-HA-URL/auth/external/callback`
+  - URI must match exactly (case-sensitive)
+- **Verify Client Registration**: At [Tibber Client Management](https://data-api.tibber.com/clients/manage):
+  - **Application Type**: Public Client (no client secret)
+  - **Required Scopes**: `openid`, `profile`, `email`, `offline_access`, `data-api-user-read`, `data-api-homes-read`
+  - **Redirect URI**: Must match your Home Assistant setup exactly
+- **Troubleshooting Steps**:
+  1. Delete and recreate your Home Assistant application credential
+  2. Verify the Client ID matches your Tibber registration exactly
+  3. Ensure you're using Home Assistant 2023.1 or later
+  4. Try the OAuth flow again
 
 #### "Cannot connect to Tibber Data API"
 - Check your internet connection
 - Verify your Tibber account has access to the Data API
 - Contact Tibber support if the issue persists
 
+#### "No homes found" during setup
+- **Most Common Issue**: You may not have Tibber Data API access or connected devices
+- **Check Your Account**:
+  1. Log in to [Tibber Data API Client Management](https://data-api.tibber.com/clients/manage)
+  2. If you can't access this page, you don't have Data API access
+  3. Contact Tibber support to request Data API access
+- **Verify Connected Devices**:
+  1. Open the regular Tibber mobile app
+  2. Check if you have any connected IoT devices (EVs, chargers, thermostats, etc.)
+  3. If not, you need to connect devices first before using this integration
+- **API Endpoint Test**: The integration tries to access `/v1/homes` - this only returns homes with connected IoT devices
+
 #### Devices not showing up
 - Make sure your devices are connected to Tibber and showing in the Tibber app
 - Check that your OAuth2 client has the required scopes:
   - `openid`, `profile`, `email`, `offline_access`
   - `data-api-user-read`, `data-api-homes-read`
+  - `data-api-vehicles-read`, `data-api-chargers-read`, `data-api-thermostats-read`
+  - `data-api-energy-systems-read`, `data-api-inverters-read`
 - Try reloading the integration
 
 ### Debug Logging
