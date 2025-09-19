@@ -79,9 +79,8 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
 
         # Link device to its home hub
         home_id = device_data.get("home_id")
-        via_device = (DOMAIN, f"home_{home_id}") if home_id else None
 
-        return DeviceInfo(
+        device_info = DeviceInfo(
             identifiers={(DOMAIN, self._device_id)},
             name=device_name,
             manufacturer=device_data.get("manufacturer", MANUFACTURER),
@@ -90,8 +89,13 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
             suggested_area=suggested_area,
             configuration_url="https://data-api.tibber.com/clients/manage",
             connections=self._get_device_connections(),
-            via_device=via_device
         )
+
+        # Only add via_device if we have a home_id
+        if home_id:
+            device_info["via_device"] = (DOMAIN, f"home_{home_id}")
+
+        return device_info
 
     def _get_firmware_version(self) -> Optional[str]:
         """Extract firmware version from device attributes."""
