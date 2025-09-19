@@ -143,10 +143,17 @@ class TibberHome:
     @classmethod
     def from_api_data(cls, data: Dict[str, Any]) -> Self:
         """Create TibberHome from API response data."""
-        # The actual API response has 'name' directly on the home object
-        display_name = data.get("name")
+        # Handle both API response formats:
+        # 1. Direct name field: {"name": "My Home", ...}
+        # 2. API spec format: {"info": {"name": "My Home"}, ...}
+        display_name = data.get("name")  # Try direct name first
 
-        # If no name available, create a fallback using home ID
+        if not display_name:
+            # Try API specification format: info.name
+            info = data.get("info", {})
+            display_name = info.get("name")
+
+        # If still no name available, create a fallback using home ID
         if not display_name:
             home_id = data.get("id", "")
             if home_id:
