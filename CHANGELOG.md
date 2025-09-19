@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Hub device names now include home name from API (e.g., "My House Hub" instead of generic name)
 - Hub device model updated to "Tibber Home Hub" for better identification
+- Code cleanup: removed debug logging, simplified logic, improved readability
 
 ## [1.0.0] - 2025-01-19
 

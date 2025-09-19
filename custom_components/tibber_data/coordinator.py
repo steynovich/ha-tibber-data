@@ -110,16 +110,13 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             # Convert to the format expected by entities
             homes = {}
             for home in homes_data:
-                home_entry = {
+                homes[home.home_id] = {
                     "id": home.home_id,
                     "displayName": home.display_name,
                     "timeZone": home.time_zone,
                     "address": home.address,
                     "deviceCount": home.device_count
                 }
-                homes[home.home_id] = home_entry
-                # Debug logging to verify home data storage
-                _LOGGER.debug("Storing home %s with displayName: %s", home.home_id, home.display_name)
 
             devices = {}
             for device in devices_data:
@@ -422,27 +419,19 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
 
             # If home name has changed, update device areas
             if new_name and old_name and new_name != old_name:
-                _LOGGER.info("Home name changed from '%s' to '%s' for home %s", old_name, new_name, home_id)
+                _LOGGER.info("Home name changed: %s -> %s", old_name, new_name)
 
-                # First, update the hub device itself
+                # Update the hub device itself
                 hub_device = device_registry.async_get_device({(DOMAIN, f"home_{home_id}")})
                 if hub_device:
-                    hub_name = f"{new_name} Hub"
-                    device_registry.async_update_device(
-                        hub_device.id,
-                        name=hub_name
-                    )
-                    _LOGGER.debug("Updated hub device name to '%s' for home %s", hub_name, home_id)
+                    device_registry.async_update_device(hub_device.id, name=new_name)
 
-                # Then find all devices for this home and update their suggested area
+                # Update all devices for this home with new suggested area
                 if DATA_DEVICES in self.data:
                     for device_id, device_data in self.data[DATA_DEVICES].items():
                         if device_data.get("home_id") == home_id:
-                            # Update device in registry with new suggested area
                             device = device_registry.async_get_device({(DOMAIN, device_id)})
                             if device:
                                 device_registry.async_update_device(
-                                    device.id,
-                                    suggested_area=new_name
+                                    device.id, suggested_area=new_name
                                 )
-                                _LOGGER.debug("Updated device %s area to '%s'", device_id, new_name)

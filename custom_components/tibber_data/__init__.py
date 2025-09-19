@@ -57,8 +57,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Still proceed with setup - coordinator will retry
         pass
 
-    # Register devices in device registry first (before platforms)
-    # This ensures hub devices exist before entities try to reference them
+    # Register devices before setting up platforms
     await _async_register_devices(hass, coordinator, entry)
 
     # Set up platforms
@@ -111,42 +110,36 @@ async def _async_register_devices(
     if not coordinator.data:
         return
 
-    # First, register hub devices for each home
+    # Register hub devices for each home
     registered_homes = set()
     if "homes" in coordinator.data:
         for home_id, home_data in coordinator.data["homes"].items():
             home_name = home_data.get("displayName", f"Tibber Home {home_id[:8]}")
-            hub_name = f"{home_name} Hub"
 
-            # Register hub device for the home
             device_registry.async_get_or_create(
                 config_entry_id=entry.entry_id,
                 identifiers={(DOMAIN, f"home_{home_id}")},
-                name=hub_name,
+                name=home_name,
                 manufacturer="Tibber",
-                model="Tibber Home Hub",
+                model="Tibber Home",
                 configuration_url="https://data-api.tibber.com/clients/manage",
-                entry_type=DeviceEntryType.SERVICE  # Mark as hub/service device
+                entry_type=DeviceEntryType.SERVICE
             )
             registered_homes.add(home_id)
-            _LOGGER.debug("Registered hub device for home: %s", home_name)
 
-    # Then register individual devices with their hub as parent
+    # Register individual devices with their hub as parent
     if "devices" in coordinator.data:
         for device_id, device_data in coordinator.data["devices"].items():
-            # Get home data for hub relationship
             home_id = device_data.get("home_id")
             home_data = coordinator.data.get("homes", {}).get(home_id, {})
             suggested_area = home_data.get("displayName")
 
-            # Prepare device name using our helper logic
             device_name = device_data.get("name")
             if not device_name or not device_name.strip():
                 manufacturer = device_data.get("manufacturer", "Unknown")
                 model = device_data.get("model", "Device")
                 device_name = f"{manufacturer} {model}"
 
-            # Register device with hub as parent
             via_device = (DOMAIN, f"home_{home_id}") if home_id in registered_homes else None
 
             device_registry.async_get_or_create(
@@ -159,9 +152,6 @@ async def _async_register_devices(
                 configuration_url="https://data-api.tibber.com/clients/manage",
                 via_device=via_device
             )
-
-        _LOGGER.debug("Registered %d devices under %d hubs",
-                     len(coordinator.data["devices"]), len(registered_homes))
 
 
 async def _async_stop_handler(event: Any) -> None:  # noqa: ARG001
