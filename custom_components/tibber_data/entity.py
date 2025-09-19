@@ -71,16 +71,12 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
             )
 
         # Get home information for area assignment
-        # This ensures devices are grouped by their actual Tibber home name
+        # Extract the actual home name from the Tibber homes API
         home_data = self.home_data
         suggested_area = None
-        if home_data:
-            # Use the home's display name as the area name (e.g., "My House", "Summer Cabin")
-            suggested_area = home_data.get("displayName")
-            # If no displayName, this should not happen since the API provides home names
-            # But as a safety fallback, use a generic name
-            if not suggested_area:
-                suggested_area = "Tibber Home"
+        if home_data and "displayName" in home_data:
+            # Use the actual home name from the API response
+            suggested_area = home_data["displayName"]
 
         # Get device name using our helper logic
         device_name = self._get_device_display_name(device_data)
