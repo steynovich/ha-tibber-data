@@ -1,0 +1,24 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  release:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download zip file
+        uses: actions/download-artifact@v4
+        with:
+          name: tibber_data
+
+      - name: Upload zip file to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: tibber_data.zip
+          asset_name: tibber_data.zip
+          tag: ${{ github.ref }}
+          overwrite: true
