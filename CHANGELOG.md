@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Maintained fallback compatibility with test data format for comprehensive coverage
 - Enhanced area assignment logic to use only actual home names from Tibber homes API
 - Removed all hardcoded fallback names, relying exclusively on API-provided home names
+- Fixed area names not updating when home names change in Tibber - now automatically updates device areas
+
+### Added
+- Automatic device area updates when Tibber home names change
+- Hub device name updates when home names change in Tibber API
+- Debug logging for home name changes and device area updates
 
 ## [1.0.0] - 2025-01-19
 
