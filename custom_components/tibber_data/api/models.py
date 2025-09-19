@@ -161,6 +161,10 @@ class TibberHome:
             else:
                 display_name = "Tibber Home"
 
+        # Ensure home name has "Tibber" prefix if it doesn't already
+        elif not display_name.startswith("Tibber"):
+            display_name = f"Tibber {display_name}"
+
         return cls(
             home_id=data["id"],
             display_name=display_name,

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.0.2] - 2025-01-20
+
+### Fixed
+- Fixed device area assignment to use actual home names from Tibber API instead of generic fallbacks
+- Device suggested areas now show "Tibber {home.name}" format using real home names from API
+- Resolved issue where devices showed "Tibber Home Name" instead of meaningful area names
+
+### Technical
+- Enhanced TibberHome model to ensure proper "Tibber" prefix for home names from API
+- Maintained backward compatibility for homes without names (still use ID-based fallbacks)
+
 ## [1.0.1] - 2025-01-20
 
 ### Fixed
