@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 import aiohttp
 
-from .models import OAuthSession, TibberHome, TibberDevice
+from .models import TibberOAuthSession, TibberHome, TibberDevice
 
 
 # Retry configuration according to Tibber API specs
@@ -37,7 +37,7 @@ class TibberDataClient:
         base_url: str = "https://data-api.tibber.com",
         session: Optional[aiohttp.ClientSession] = None,
         access_token: Optional[str] = None,
-        oauth_session: Optional[OAuthSession] = None
+        oauth_session: Optional[TibberOAuthSession] = None
     ) -> None:
         """Initialize Tibber Data API client."""
         self.client_id = client_id
@@ -58,8 +58,8 @@ class TibberDataClient:
         """Set aiohttp session."""
         self._session = session
 
-    def set_oauth_session(self, oauth_session: OAuthSession) -> None:
-        """Set OAuth session for authenticated requests."""
+    def set_oauth_session(self, oauth_session: TibberOAuthSession) -> None:
+        """Set OAuth2 session for authenticated requests."""
         self._oauth_session = oauth_session
         self._access_token = oauth_session.access_token
 
@@ -107,7 +107,7 @@ class TibberDataClient:
         }
 
         query_string = urllib.parse.urlencode(params)
-        return f"{self.base_url}/oauth2/authorize?{query_string}"
+        return f"https://thewall.tibber.com/connect/authorize?{query_string}"
 
     async def validate_authorization_request(
         self,
@@ -150,7 +150,7 @@ class TibberDataClient:
             "code_verifier": code_verifier
         }
 
-        url = f"{self.base_url}/oauth2/token"
+        url = "https://thewall.tibber.com/connect/token"
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
         async with self.session.post(url, data=data, headers=headers) as response:
@@ -175,7 +175,10 @@ class TibberDataClient:
         client_id: str,
         refresh_token: str
     ) -> Dict[str, Any]:
-        """Refresh expired access token."""
+        """Refresh expired access token using refresh token.
+
+        Tibber refresh tokens are long-lived (~30 days) and may be rotated.
+        """
         if not client_id:
             raise ValueError("Missing required parameter: client_id")
         if not refresh_token:
@@ -187,7 +190,7 @@ class TibberDataClient:
             "client_id": client_id
         }
 
-        url = f"{self.base_url}/oauth2/refresh"
+        url = "https://thewall.tibber.com/connect/token"
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
         async with self.session.post(url, data=data, headers=headers) as response:
@@ -196,8 +199,12 @@ class TibberDataClient:
             if response.status == 401:
                 error_desc = response_data.get("error_description", "Invalid refresh token")
                 if "expired" in error_desc.lower():
-                    raise ValueError("Refresh token expired")
+                    raise ValueError("Refresh token expired - reauthentication required")
                 raise ValueError("Invalid refresh token")
+
+            if response.status == 400:
+                error_desc = response_data.get("error_description", "Bad request")
+                raise ValueError(f"Token refresh failed: {error_desc}")
 
             if response.status != 200:
                 raise ValueError(f"Token refresh failed: HTTP {response.status}")
@@ -208,9 +215,12 @@ class TibberDataClient:
         self,
         expires_at: int,
         current_time: int,
-        threshold_seconds: int = 600
+        threshold_seconds: int = 300  # 5 minutes before expiry
     ) -> bool:
-        """Check if token should be refreshed."""
+        """Check if token should be refreshed.
+
+        Tibber access tokens last ~1 hour, refresh when within 5 minutes of expiry.
+        """
         return current_time >= (expires_at - threshold_seconds)
 
     # API Methods

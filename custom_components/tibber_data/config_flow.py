@@ -36,7 +36,7 @@ class TibberDataFlowHandler(
     def extra_authorize_data(self) -> Dict[str, Any]:
         """Extra data that needs to be appended to the authorize url."""
         return {
-            "scope": "USER HOME",
+            "scope": "openid profile email offline_access data-api-user-read data-api-homes-read",
         }
 
     async def async_step_reauth(self, entry_data: Dict[str, Any]) -> ConfigFlowResult:

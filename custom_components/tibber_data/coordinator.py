@@ -11,7 +11,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .api.client import TibberDataClient
-from .api.models import OAuthSession, TibberDevice
+from .api.models import TibberOAuthSession, TibberDevice
 from .const import (
     DOMAIN,
     DATA_HOMES,
@@ -40,7 +40,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
         """Initialize the coordinator."""
         self.client = client
         self.config_entry: ConfigEntry = config_entry
-        self._oauth_session: Optional[OAuthSession] = None
+        self._oauth_session: Optional[TibberOAuthSession] = None
 
         # Set up OAuth session from config entry data
         self._setup_oauth_session()
@@ -72,14 +72,14 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             elif CONF_EXPIRES_AT in self.config_entry.data:
                 expires_at = self.config_entry.data[CONF_EXPIRES_AT]
 
-            # Handle scopes
-            scopes = self.config_entry.data.get("scope", "USER HOME")
+            # Handle scopes - use Tibber's required baseline scopes
+            scopes = self.config_entry.data.get("scope", "openid profile email offline_access data-api-user-read data-api-homes-read")
             if isinstance(scopes, str):
                 scopes = scopes.split()
             elif not scopes:
-                scopes = ["USER", "HOME"]
+                scopes = ["openid", "profile", "email", "offline_access", "data-api-user-read", "data-api-homes-read"]
 
-            self._oauth_session = OAuthSession(
+            self._oauth_session = TibberOAuthSession(
                 session_id=self.config_entry.entry_id,
                 user_id=self.config_entry.unique_id or "unknown",
                 access_token=access_token,
@@ -98,9 +98,6 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
     async def _async_update_data(self) -> Dict[str, Any]:
         """Fetch data from API endpoint."""
         try:
-            # Check if we need to refresh the token
-            await self._ensure_valid_token()
-
             # Fetch homes and devices
             homes_data, devices_data = await self.client.get_homes_with_devices()
 
@@ -362,7 +359,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
         ]
 
     @property
-    def oauth_session(self) -> Optional[OAuthSession]:
+    def oauth_session(self) -> Optional[TibberOAuthSession]:
         """Get the current OAuth session."""
         return self._oauth_session
 

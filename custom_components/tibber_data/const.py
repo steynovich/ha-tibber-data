@@ -10,10 +10,17 @@ INTEGRATION_VERSION: Final = "1.0.0"
 # Manufacturer information
 MANUFACTURER: Final = "Tibber"
 
-# OAuth2 configuration
-OAUTH2_AUTHORIZE_URL: Final = "https://data-api.tibber.com/oauth2/authorize"
-OAUTH2_TOKEN_URL: Final = "https://data-api.tibber.com/oauth2/token"
-OAUTH2_SCOPES: Final = ["USER", "HOME"]
+# OAuth2 configuration (according to official Tibber docs)
+OAUTH2_AUTHORIZE_URL: Final = "https://thewall.tibber.com/connect/authorize"
+OAUTH2_TOKEN_URL: Final = "https://thewall.tibber.com/connect/token"
+OAUTH2_SCOPES: Final = [
+    "openid",
+    "profile",
+    "email",
+    "offline_access",
+    "data-api-user-read",
+    "data-api-homes-read"
+]
 
 # API configuration
 API_BASE_URL: Final = "https://data-api.tibber.com"
@@ -33,8 +40,8 @@ DEFAULT_UPDATE_INTERVAL: Final = timedelta(seconds=60)
 MIN_UPDATE_INTERVAL: Final = timedelta(seconds=30)
 MAX_UPDATE_INTERVAL: Final = timedelta(minutes=15)
 
-# Token management
-TOKEN_REFRESH_THRESHOLD: Final = 600  # Refresh token 10 minutes before expiry
+# Token management (according to Tibber specs)
+TOKEN_REFRESH_THRESHOLD: Final = 300  # Refresh token 5 minutes before expiry (~1 hour lifetime)
 TOKEN_RETRY_DELAY: Final = 30  # seconds between token refresh retries
 
 # Device types supported by the integration

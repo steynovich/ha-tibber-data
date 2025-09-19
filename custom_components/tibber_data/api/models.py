@@ -8,21 +8,21 @@ from uuid import UUID
 
 
 @dataclass
-class OAuthSession:
-    """Authentication session for accessing Tibber Data API."""
+class TibberOAuthSession:
+    """OAuth2 session for accessing Tibber Data API (with refresh tokens)."""
 
     session_id: str
     user_id: str
     access_token: str
     refresh_token: str
     token_type: str = "Bearer"
-    expires_at: int = 0
+    expires_at: int = 0  # Unix timestamp
     scopes: List[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     last_refreshed: Optional[datetime] = None
 
     def __post_init__(self) -> None:
-        """Validate OAuth session data."""
+        """Validate OAuth2 session data."""
         if not self.access_token:
             raise ValueError("Access token is required")
         if not self.refresh_token:
@@ -32,10 +32,16 @@ class OAuthSession:
         if self.token_type != "Bearer":
             raise ValueError("Only Bearer token type is supported")
 
-        # Ensure scopes include required permissions
-        required_scopes = {"USER", "HOME"}
-        if not required_scopes.issubset(set(self.scopes)):
-            raise ValueError(f"Missing required scopes: {required_scopes - set(self.scopes)}")
+        # Ensure scopes include required baseline permissions
+        required_scopes = {
+            "openid",
+            "data-api-user-read",
+            "data-api-homes-read"
+        }
+        provided_scopes = set(self.scopes)
+        if not required_scopes.issubset(provided_scopes):
+            missing = required_scopes - provided_scopes
+            raise ValueError(f"Missing required scopes: {missing}")
 
     @property
     def is_expired(self) -> bool:
@@ -45,8 +51,11 @@ class OAuthSession:
         return datetime.now(timezone.utc).timestamp() >= self.expires_at
 
     @property
-    def needs_refresh(self, threshold_seconds: int = 600) -> bool:
-        """Check if token should be refreshed (within threshold of expiry)."""
+    def needs_refresh(self, threshold_seconds: int = 300) -> bool:
+        """Check if token should be refreshed (within threshold of expiry).
+
+        Tibber access tokens last ~1 hour, refresh if within 5 minutes of expiry.
+        """
         if self.expires_at == 0:
             return False
         return datetime.now(timezone.utc).timestamp() >= (self.expires_at - threshold_seconds)
@@ -54,13 +63,14 @@ class OAuthSession:
     def update_tokens(
         self,
         access_token: str,
-        refresh_token: str,
-        expires_in: int,
+        refresh_token: Optional[str] = None,
+        expires_in: int = 3600,
         scopes: Optional[List[str]] = None
     ) -> None:
         """Update token information after refresh."""
         self.access_token = access_token
-        self.refresh_token = refresh_token
+        if refresh_token:  # Refresh tokens might be rotated
+            self.refresh_token = refresh_token
         self.expires_at = int(datetime.now(timezone.utc).timestamp() + expires_in)
         self.last_refreshed = datetime.now(timezone.utc)
 
@@ -69,7 +79,7 @@ class OAuthSession:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> Self:
-        """Create OAuthSession from dictionary data."""
+        """Create TibberOAuthSession from dictionary data."""
         scopes = data.get("scopes", [])
         if isinstance(scopes, str):
             scopes = scopes.split()
@@ -87,7 +97,7 @@ class OAuthSession:
         )
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert OAuthSession to dictionary for storage."""
+        """Convert TibberOAuthSession to dictionary for storage."""
         return {
             "session_id": self.session_id,
             "user_id": self.user_id,
