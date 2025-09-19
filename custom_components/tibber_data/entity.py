@@ -53,9 +53,9 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
         if not device_data:
             return False
 
-        # Entity is available if device is online
-        online_status: bool = device_data.get("online", False)
-        return online_status
+        # Keep sensors available even for offline devices to show last known values
+        # Users can still see device online status through the diagnostic sensor
+        return True
 
     @property
     def device_info(self) -> DeviceInfo:

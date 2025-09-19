@@ -20,6 +20,14 @@ from .entity import TibberDataAttributeEntity
 _LOGGER = logging.getLogger(__name__)
 
 
+def _should_ignore_attribute(attribute_name: str) -> bool:
+    """Determine if an attribute should be completely ignored (not created as any sensor)."""
+    ignored_attribute_names = {
+        "isOnline",
+    }
+    return attribute_name in ignored_attribute_names
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -42,6 +50,11 @@ async def async_setup_entry(
             for attribute in device_data.get("attributes", []):
                 attribute_path = attribute["name"]
                 attribute_value = attribute.get("value")
+
+                # Skip attributes that should be completely ignored
+                if _should_ignore_attribute(attribute_path):
+                    _LOGGER.debug("Ignoring attribute %s completely", attribute_path)
+                    continue
 
                 # Only create binary sensors for boolean attributes
                 if isinstance(attribute_value, bool):

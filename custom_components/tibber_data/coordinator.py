@@ -129,25 +129,34 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 # Convert capabilities to the expected format
                 capabilities = []
                 for capability in device.capabilities:
-                    capabilities.append({
+                    cap_data = {
                         "name": capability.name,
                         "displayName": capability.display_name,
                         "value": capability.value,
                         "unit": capability.unit,
                         "lastUpdated": capability.last_updated.isoformat()
-                    })
+                    }
+                    if capability.available_values is not None:
+                        cap_data["availableValues"] = capability.available_values
+                    capabilities.append(cap_data)
 
                 # Convert attributes to the expected format
                 attributes = []
                 for attribute in device.attributes:
-                    attributes.append({
+                    attr_dict = {
                         "name": attribute.name,
                         "displayName": attribute.display_name,
                         "value": attribute.value,
                         "dataType": attribute.data_type,
                         "lastUpdated": attribute.last_updated.isoformat(),
                         "isDiagnostic": attribute.is_diagnostic
-                    })
+                    }
+
+                    # Add any additional fields stored in the attribute
+                    if hasattr(attribute, 'additional_fields') and attribute.additional_fields:
+                        attr_dict.update(attribute.additional_fields)
+
+                    attributes.append(attr_dict)
 
                 devices[device.device_id] = {
                     "id": device.device_id,
@@ -311,13 +320,16 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 # Convert device back to the expected format (same as _async_update_data)
                 capabilities = []
                 for capability in updated_device.capabilities:
-                    capabilities.append({
+                    cap_data = {
                         "name": capability.name,
                         "displayName": capability.display_name,
                         "value": capability.value,
                         "unit": capability.unit,
                         "lastUpdated": capability.last_updated.isoformat()
-                    })
+                    }
+                    if capability.available_values is not None:
+                        cap_data["availableValues"] = capability.available_values
+                    capabilities.append(cap_data)
 
                 attributes = []
                 for attribute in updated_device.attributes:

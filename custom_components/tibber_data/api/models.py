@@ -186,6 +186,7 @@ class DeviceCapability:
     value: Union[float, str, bool, int]
     unit: str
     last_updated: datetime
+    available_values: Optional[List[str]] = None
     # Note: According to OpenAPI spec v1.json, capabilities don't have minValue/maxValue/precision
 
     def __post_init__(self) -> None:
@@ -224,7 +225,8 @@ class DeviceCapability:
             display_name=data.get("description", capability_name.replace("_", " ").title()),
             value=data["value"],
             unit=data.get("unit", ""),
-            last_updated=last_updated
+            last_updated=last_updated,
+            available_values=data.get("availableValues")
         )
 
     @property
@@ -250,6 +252,7 @@ class DeviceAttribute:
     data_type: str
     last_updated: datetime
     is_diagnostic: bool = False
+    additional_fields: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Validate DeviceAttribute data."""
@@ -320,6 +323,13 @@ class DeviceAttribute:
         # Use current timestamp as fallback
         last_updated = datetime.now(timezone.utc)
 
+        # Collect additional fields from API data
+        additional_fields = {}
+        excluded_fields = {"id", "value", "status", "description"}
+        for key, val in data.items():
+            if key not in excluded_fields and val is not None:
+                additional_fields[key] = val
+
         return cls(
             attribute_id=full_attribute_id,
             device_id=device_id,
@@ -328,7 +338,8 @@ class DeviceAttribute:
             value=value,
             data_type=data_type,
             last_updated=last_updated,
-            is_diagnostic=attribute_id.startswith("connectivity") or attribute_id.startswith("firmware")
+            is_diagnostic=attribute_id.startswith("connectivity") or attribute_id.startswith("firmware"),
+            additional_fields=additional_fields
         )
 
     @property

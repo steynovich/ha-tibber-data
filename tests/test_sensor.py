@@ -6,7 +6,7 @@ from custom_components.tibber_data.sensor import (
     async_setup_entry,
     TibberDataCapabilitySensor,
 )
-from custom_components.tibber_data.const import DOMAIN
+from custom_components.tibber_data.const import DOMAIN, DATA_COORDINATOR
 
 
 class TestTibberDataSensor:
@@ -117,8 +117,8 @@ class TestTibberDataSensor:
         assert device_info["name"] == "Test Device"
         assert device_info["manufacturer"] == "Tibber"
 
-    def test_sensor_state_unavailable_when_device_offline(self, mock_coordinator):
-        """Test sensor shows unavailable when device is offline."""
+    def test_sensor_state_available_when_device_offline(self, mock_coordinator):
+        """Test sensor remains available even when device is offline to show last known values."""
 
         sensor = TibberDataCapabilitySensor(
             coordinator=mock_coordinator,
@@ -126,9 +126,10 @@ class TestTibberDataSensor:
             capability_name="temperature"
         )
 
-        # Device is offline, sensor should be unavailable
-        assert not sensor.available
-        # Note: native_value might still return the last known value
+        # Device is offline, but sensor should remain available to show last known values
+        assert sensor.available
+        # Native value should still return the last known value
+        assert sensor.native_value == 21.5
 
     def test_sensor_state_updates(self, mock_coordinator):
         """Test sensor state updates when coordinator data changes."""
@@ -241,3 +242,59 @@ class TestTibberDataSensor:
 
         assert entity_entry.unique_id == "tibber_data_device-123_battery_level"
         assert entity_entry.original_name == "Test Device Battery Level"
+
+    def test_string_sensor_with_available_values(self, mock_coordinator):
+        """Test that capabilities with availableValues are created as string sensors."""
+        # Add a capability with availableValues to the test data
+        mock_coordinator.data["devices"]["device-123"]["capabilities"].append({
+            "name": "connector.status",
+            "displayName": "Connector Status",
+            "value": "connected",
+            "unit": "",
+            "lastUpdated": "2024-01-01T00:00:00Z",
+            "availableValues": ["connected", "disconnected", "unknown"]
+        })
+
+        from custom_components.tibber_data.sensor import TibberDataStringSensor
+
+        # Create sensors through the setup function to test the selection logic
+        from custom_components.tibber_data.sensor import async_setup_entry
+
+        class MockConfigEntry:
+            entry_id = "test_entry"
+
+        class MockHass:
+            data = {DOMAIN: {"test_entry": {DATA_COORDINATOR: mock_coordinator}}}
+
+        entities_added = []
+        def mock_add_entities(entities, _update_before_add=False):
+            entities_added.extend(entities)
+
+        # Import the needed testing utilities
+        import asyncio
+
+        # Run the setup
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(async_setup_entry(
+                hass=MockHass(),
+                config_entry=MockConfigEntry(),
+                async_add_entities=mock_add_entities
+            ))
+        finally:
+            loop.close()
+
+        # Find the connector.status sensor
+        connector_sensor = None
+        for entity in entities_added:
+            if hasattr(entity, '_capability_name') and entity._capability_name == "connector.status":
+                connector_sensor = entity
+                break
+
+        # Should be a TibberDataStringSensor
+        assert connector_sensor is not None
+        assert isinstance(connector_sensor, TibberDataStringSensor)
+        assert connector_sensor.native_value == "Connected"
+        assert "available_values" in connector_sensor.extra_state_attributes
+        assert connector_sensor.extra_state_attributes["available_values"] == ["connected", "disconnected", "unknown"]

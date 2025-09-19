@@ -66,6 +66,55 @@ CONF_SCOPES: Final = "scopes"
 ENTITY_ID_FORMAT: Final = "{domain}.{device_name}_{capability_name}"
 UNIQUE_ID_FORMAT: Final = "tibber_data_{device_id}_{capability_name}"
 
+# Human-readable names for sensors
+SENSOR_NAME_MAPPINGS: Final = {
+    # Attribute sensors (diagnostic)
+    "connectivity.wifi": "WiFi Connection",
+    "connectivity.cellular": "Cellular Connection",
+    "firmwareVersion": "Firmware Version",
+    "serialNumber": "Serial Number",
+    "isOnline": "Online Status",
+
+    # Capability sensors (regular sensors)
+    "wifi.rssi": "WiFi Signal Strength",
+    "cellular.rssi": "Cellular Signal Strength",
+    "storage.ratedCapacity": "Battery Capacity",
+    "storage.ratedPower": "Battery Max Power",
+    "storage.stateOfCharge": "Battery Level",
+    "storage.availableEnergy": "Available Energy",
+    "powerFlow.battery.power": "Battery Power",
+    "powerFlow.grid.power": "Grid Power",
+    "powerFlow.solar.power": "Solar Power",
+    "powerFlow.load.power": "Load Power",
+    "powerFlow.toGrid": "Power To Grid",
+    "powerFlow.toSolar": "Power To Solar",
+    "powerFlow.toLoad": "Power To Load",
+    "powerFlow.fromGrid": "Power From Grid",
+    "powerFlow.fromSolar": "Power From Solar",
+    "powerFlow.fromLoad": "Power From Load",
+    "energyFlow.hour.battery.charged": "Battery Energy Charged (Hour)",
+    "energyFlow.hour.battery.discharged": "Battery Energy Discharged (Hour)",
+    "energyFlow.hour.grid.imported": "Grid Energy Imported (Hour)",
+    "energyFlow.hour.grid.exported": "Grid Energy Exported (Hour)",
+    "energyFlow.hour.solar.produced": "Solar Energy Produced (Hour)",
+    "energyFlow.hour.load.consumed": "Load Energy Consumed (Hour)",
+    "energyFlow.day.battery.charged": "Battery Energy Charged (Day)",
+    "energyFlow.day.battery.discharged": "Battery Energy Discharged (Day)",
+    "energyFlow.day.grid.imported": "Grid Energy Imported (Day)",
+    "energyFlow.day.grid.exported": "Grid Energy Exported (Day)",
+    "energyFlow.day.solar.produced": "Solar Energy Produced (Day)",
+    "energyFlow.day.load.consumed": "Load Energy Consumed (Day)",
+
+    # Electric Vehicle sensors (Volvo and other EVs)
+    "storage.targetStateOfCharge": "Target Battery Level",
+    "range.remaining": "Remaining Range",
+    "charging.timeToFullyCharged": "Time To Full Charge",
+    "connector.status": "Charging Connector",
+    "charging.status": "Charging Status",
+    "vinNumber": "VIN Number",
+    "v60_vehicle_plug_status": "Vehicle Plug Status",
+}
+
 # Device capability types and their Home Assistant sensor mappings
 CAPABILITY_MAPPINGS: Final = {
     # Energy and power capabilities
@@ -152,6 +201,49 @@ CAPABILITY_MAPPINGS: Final = {
         "state_class": "measurement",
         "unit": "%",
         "icon": "mdi:wifi"
+    },
+
+    # Electric Vehicle capabilities (Volvo and other EVs)
+    "storage.stateOfCharge": {
+        "device_class": "battery",
+        "state_class": "measurement",
+        "unit": "%",
+        "icon": "mdi:battery"
+    },
+    "storage.targetStateOfCharge": {
+        "device_class": "battery",
+        "state_class": "measurement",
+        "unit": "%",
+        "icon": "mdi:battery-arrow-up"
+    },
+    "range.remaining": {
+        "state_class": "measurement",
+        "unit": "m",
+        "icon": "mdi:map-marker-distance"
+    },
+    "charging.timeToFullyCharged": {
+        "device_class": "duration",
+        "state_class": "measurement",
+        "unit": "h",
+        "icon": "mdi:timer"
+    },
+    "connector.status": {
+        "icon": "mdi:power-plug",
+        "state_class": None  # Explicitly set to None for string values
+    },
+    "charging.status": {
+        "icon": "mdi:battery-charging",
+        "state_class": None  # Explicitly set to None for string values
+    },
+
+    # Vehicle plug status (generic pattern for vehicle plug status sensors)
+    "vehicle_plug_status": {
+        "icon": "mdi:power-plug",
+        "state_class": None  # Explicitly set to None for string values
+    },
+    "v60_vehicle_plug_status": {
+        "icon": "mdi:power-plug",
+        "state_class": None  # Explicitly set to None for string values
     }
 }
 
@@ -183,6 +275,11 @@ ATTRIBUTE_MAPPINGS: Final = {
         "device_class": "problem",
         "name_suffix": "Error",
         "icon": "mdi:alert-circle"
+    },
+
+    # Electric Vehicle attributes
+    "vinNumber": {
+        "icon": "mdi:identifier"
     }
 }
 
