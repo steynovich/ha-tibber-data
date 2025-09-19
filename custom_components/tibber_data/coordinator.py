@@ -110,13 +110,16 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             # Convert to the format expected by entities
             homes = {}
             for home in homes_data:
-                homes[home.home_id] = {
+                home_entry = {
                     "id": home.home_id,
                     "displayName": home.display_name,
                     "timeZone": home.time_zone,
                     "address": home.address,
                     "deviceCount": home.device_count
                 }
+                homes[home.home_id] = home_entry
+                # Debug logging to verify home data storage
+                _LOGGER.debug("Storing home %s with displayName: %s", home.home_id, home.display_name)
 
             devices = {}
             for device in devices_data:

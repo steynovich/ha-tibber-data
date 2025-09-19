@@ -77,6 +77,11 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
         if home_data and "displayName" in home_data:
             # Use the actual home name from the API response
             suggested_area = home_data["displayName"]
+            # Debug logging to verify area assignment
+            import logging
+            _LOGGER = logging.getLogger(__name__)
+            _LOGGER.debug("Device %s area assignment: home_data=%s, suggested_area=%s",
+                         self._device_id, home_data, suggested_area)
 
         # Get device name using our helper logic
         device_name = self._get_device_display_name(device_data)
