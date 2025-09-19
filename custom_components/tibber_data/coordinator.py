@@ -427,11 +427,12 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 # First, update the hub device itself
                 hub_device = device_registry.async_get_device({(DOMAIN, f"home_{home_id}")})
                 if hub_device:
+                    hub_name = f"{new_name} Hub"
                     device_registry.async_update_device(
                         hub_device.id,
-                        name=new_name
+                        name=hub_name
                     )
-                    _LOGGER.debug("Updated hub device name to '%s' for home %s", new_name, home_id)
+                    _LOGGER.debug("Updated hub device name to '%s' for home %s", hub_name, home_id)
 
                 # Then find all devices for this home and update their suggested area
                 if DATA_DEVICES in self.data:

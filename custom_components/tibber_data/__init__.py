@@ -116,14 +116,15 @@ async def _async_register_devices(
     if "homes" in coordinator.data:
         for home_id, home_data in coordinator.data["homes"].items():
             home_name = home_data.get("displayName", f"Tibber Home {home_id[:8]}")
+            hub_name = f"{home_name} Hub"
 
             # Register hub device for the home
             device_registry.async_get_or_create(
                 config_entry_id=entry.entry_id,
                 identifiers={(DOMAIN, f"home_{home_id}")},
-                name=home_name,
+                name=hub_name,
                 manufacturer="Tibber",
-                model="Tibber Home",
+                model="Tibber Home Hub",
                 configuration_url="https://data-api.tibber.com/clients/manage",
                 entry_type=DeviceEntryType.SERVICE  # Mark as hub/service device
             )
