@@ -90,8 +90,16 @@ class TibberDataClient:
         if not code_challenge:
             raise ValueError("PKCE code challenge is required")
 
-        # Validate scopes
-        valid_scopes = {"USER", "HOME"}
+        # Validate scopes against Tibber's supported scopes
+        valid_scopes = {
+            "openid",
+            "profile",
+            "email",
+            "offline_access",
+            "data-api-user-read",
+            "data-api-homes-read",
+            "data-api-device-categories-read"  # Additional device category scopes may be added
+        }
         invalid_scopes = set(scopes) - valid_scopes
         if invalid_scopes:
             raise ValueError(f"Invalid scope: {invalid_scopes}")

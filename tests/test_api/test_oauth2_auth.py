@@ -51,7 +51,7 @@ class TestOAuth2AuthContract:
             redirect_uri=redirect_uri,
             state=state,
             code_challenge=code_challenge,
-            scopes=["USER", "HOME"]
+            scopes=["openid", "profile", "email", "offline_access", "data-api-user-read", "data-api-homes-read"]
         )
 
         # Should generate proper authorization URL
@@ -60,14 +60,14 @@ class TestOAuth2AuthContract:
         parsed_url = urlparse(auth_url)
         query_params = parse_qs(parsed_url.query)
 
-        assert "data-api.tibber.com/oauth2/authorize" in auth_url
+        assert "thewall.tibber.com/connect/authorize" in auth_url
         assert query_params["client_id"][0] == client_id
         assert query_params["redirect_uri"][0] == redirect_uri
         assert query_params["state"][0] == state
         assert query_params["code_challenge"][0] == code_challenge
         assert query_params["response_type"][0] == "code"
         assert query_params["code_challenge_method"][0] == "S256"
-        assert query_params["scope"][0] == "USER HOME"
+        assert query_params["scope"][0] == "openid profile email offline_access data-api-user-read data-api-homes-read"
 
     @pytest.mark.asyncio
     async def test_authorization_endpoint_validation(self, client, mock_session):

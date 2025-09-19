@@ -49,7 +49,7 @@ class TestOAuth2RefreshContract:
             "token_type": "Bearer",
             "expires_in": 3600,
             "refresh_token": "new_refresh_token",
-            "scope": "USER HOME"
+            "scope": "openid profile email offline_access data-api-user-read data-api-homes-read"
         })
         # Set up the session.post to return our async context manager
         mock_session._current_context_manager = mock_session._mock_context_manager(mock_response)
@@ -65,7 +65,7 @@ class TestOAuth2RefreshContract:
         assert token_response["token_type"] == "Bearer"
         assert token_response["expires_in"] == 3600
         assert token_response["refresh_token"] == "new_refresh_token"
-        assert token_response["scope"] == "USER HOME"
+        assert token_response["scope"] == "openid profile email offline_access data-api-user-read data-api-homes-read"
 
         # Verify correct request was made
         # Note: We can't easily assert on the mock_post call since it's a custom function

@@ -18,7 +18,7 @@ class TestTibberDataConfigFlow:
             "refresh_token": "test_refresh_token",
             "token_type": "Bearer",
             "expires_at": 1234567890,
-            "scopes": ["USER", "HOME"]
+            "scopes": ["openid", "profile", "email", "offline_access", "data-api-user-read", "data-api-homes-read"]
         }
 
     @pytest.fixture
