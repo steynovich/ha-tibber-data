@@ -1,8 +1,7 @@
 """Test TibberData component initialization."""
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 from homeassistant.core import HomeAssistant
-from homeassistant.config_entries import ConfigEntry
 from custom_components.tibber_data import async_setup_entry, async_unload_entry
 from custom_components.tibber_data.const import DOMAIN
 
@@ -35,8 +34,7 @@ class TestTibberDataInit:
     def test_successful_setup(self):
         """Test successful component setup - basic validation."""
         # Test the setup function exists and has the correct structure
-        from custom_components.tibber_data import async_setup_entry, async_unload_entry
-        from custom_components.tibber_data.const import DOMAIN, PLATFORMS, DATA_COORDINATOR, DATA_CLIENT
+        from custom_components.tibber_data.const import PLATFORMS, DATA_COORDINATOR, DATA_CLIENT
 
         # Verify imports work correctly
         assert callable(async_setup_entry)

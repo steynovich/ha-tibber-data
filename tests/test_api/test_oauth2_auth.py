@@ -10,8 +10,7 @@ class TestOAuth2AuthContract:
     @pytest.fixture
     def mock_session(self):
         """Mock aiohttp client session."""
-        from unittest.mock import AsyncMock, MagicMock
-        import asyncio
+        from unittest.mock import AsyncMock
 
         class MockAsyncContextManager:
             def __init__(self, return_value):

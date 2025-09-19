@@ -19,7 +19,12 @@ OAUTH2_SCOPES: Final = [
     "email",
     "offline_access",
     "data-api-user-read",
-    "data-api-homes-read"
+    "data-api-homes-read",
+    "data-api-vehicles-read",
+    "data-api-chargers-read",
+    "data-api-thermostats-read",
+    "data-api-energy-systems-read",
+    "data-api-inverters-read"
 ]
 
 # API configuration
@@ -44,15 +49,7 @@ MAX_UPDATE_INTERVAL: Final = timedelta(minutes=15)
 TOKEN_REFRESH_THRESHOLD: Final = 300  # Refresh token 5 minutes before expiry (~1 hour lifetime)
 TOKEN_RETRY_DELAY: Final = 30  # seconds between token refresh retries
 
-# Device types supported by the integration
-DEVICE_TYPES: Final = {
-    "EV": "Electric Vehicle",
-    "CHARGER": "EV Charger",
-    "THERMOSTAT": "Thermostat",
-    "SOLAR_INVERTER": "Solar Inverter",
-    "BATTERY": "Battery Storage",
-    "HEAT_PUMP": "Heat Pump"
-}
+# Note: Device types removed - API doesn't provide explicit device classification
 
 # Platforms supported by this integration
 PLATFORMS: Final = ["sensor", "binary_sensor"]
@@ -95,6 +92,30 @@ CAPABILITY_MAPPINGS: Final = {
         "state_class": "total_increasing",
         "unit": "kWh",
         "icon": "mdi:solar-power"
+    },
+    "energy_storage": {
+        "device_class": "energy",
+        "state_class": "total",
+        "unit": "kWh",
+        "icon": "mdi:battery-charging"
+    },
+    "storage_capacity": {
+        "device_class": "energy",
+        "state_class": "total",
+        "unit": "kWh",
+        "icon": "mdi:battery"
+    },
+    "rated_storage_capacity": {
+        "device_class": "energy",
+        "state_class": "total",
+        "unit": "kWh",
+        "icon": "mdi:battery"
+    },
+    "available_energy": {
+        "device_class": "energy",
+        "state_class": "total",
+        "unit": "kWh",
+        "icon": "mdi:battery-charging-50"
     },
 
     # Temperature capabilities
@@ -207,7 +228,7 @@ STARTUP_MESSAGE: Final = f"""
 This integration provides access to Tibber Data API for monitoring
 IoT devices connected through the Tibber platform.
 
-Supported devices: {', '.join(DEVICE_TYPES.keys())}
+Supported platforms: {', '.join(PLATFORMS)}
 Update interval: {DEFAULT_UPDATE_INTERVAL.total_seconds()}s
 API endpoint: {API_BASE_URL}
 -------------------------------------------------------------------

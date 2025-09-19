@@ -58,32 +58,35 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
     def _setup_oauth_session(self) -> None:
         """Set up OAuth session from config entry data."""
         try:
-            # Handle both old format (custom) and new format (Home Assistant OAuth2)
-            access_token = self.config_entry.data.get("access_token") or self.config_entry.data.get(CONF_ACCESS_TOKEN)
-            refresh_token = self.config_entry.data.get("refresh_token") or self.config_entry.data.get(CONF_REFRESH_TOKEN)
+            # Home Assistant OAuth2 stores token data in nested structure under "token"
+            token_data = self.config_entry.data.get("token", {})
 
-            if not access_token or not refresh_token:
-                raise ValueError("Missing OAuth2 tokens in config entry")
+            # Extract token information from Home Assistant OAuth2 structure
+            access_token = token_data.get("access_token")
+            refresh_token = token_data.get("refresh_token")
+            expires_at = token_data.get("expires_at", 0)
 
-            # Handle expires_at from Home Assistant OAuth2 format
-            expires_at = 0
-            if "expires_at" in self.config_entry.data:
-                expires_at = self.config_entry.data["expires_at"]
-            elif CONF_EXPIRES_AT in self.config_entry.data:
-                expires_at = self.config_entry.data[CONF_EXPIRES_AT]
+            # Fallback to direct access for compatibility
+            if not access_token:
+                access_token = self.config_entry.data.get("access_token") or self.config_entry.data.get(CONF_ACCESS_TOKEN)
+                refresh_token = self.config_entry.data.get("refresh_token") or self.config_entry.data.get(CONF_REFRESH_TOKEN)
+                expires_at = self.config_entry.data.get("expires_at", 0) or self.config_entry.data.get(CONF_EXPIRES_AT, 0)
 
-            # Handle scopes - use Tibber's required baseline scopes
-            scopes = self.config_entry.data.get("scope", "openid profile email offline_access data-api-user-read data-api-homes-read")
+            if not access_token:
+                raise ValueError("Missing OAuth2 access token in config entry")
+
+            # Handle scopes from token data or use default with all device category scopes
+            scopes = token_data.get("scope", "openid profile email offline_access data-api-user-read data-api-homes-read data-api-vehicles-read data-api-chargers-read data-api-thermostats-read data-api-energy-systems-read data-api-inverters-read")
             if isinstance(scopes, str):
                 scopes = scopes.split()
             elif not scopes:
-                scopes = ["openid", "profile", "email", "offline_access", "data-api-user-read", "data-api-homes-read"]
+                scopes = ["openid", "profile", "email", "offline_access", "data-api-user-read", "data-api-homes-read", "data-api-vehicles-read", "data-api-chargers-read", "data-api-thermostats-read", "data-api-energy-systems-read", "data-api-inverters-read"]
 
             self._oauth_session = TibberOAuthSession(
                 session_id=self.config_entry.entry_id,
                 user_id=self.config_entry.unique_id or "unknown",
                 access_token=access_token,
-                refresh_token=refresh_token,
+                refresh_token=refresh_token or "",  # Allow empty refresh token
                 expires_at=expires_at,
                 scopes=scopes
             )
@@ -114,6 +117,12 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
 
             devices = {}
             for device in devices_data:
+                # Skip devices with name "Dummy" (case-insensitive)
+                device_name = device.name or ""
+                if device_name.strip().lower() == "dummy":
+                    _LOGGER.debug("Skipping dummy device: %s", device.device_id)
+                    continue
+
                 # Convert capabilities to the expected format
                 capabilities = []
                 for capability in device.capabilities:
@@ -122,10 +131,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                         "displayName": capability.display_name,
                         "value": capability.value,
                         "unit": capability.unit,
-                        "lastUpdated": capability.last_updated.isoformat(),
-                        "minValue": capability.min_value,
-                        "maxValue": capability.max_value,
-                        "precision": capability.precision
+                        "lastUpdated": capability.last_updated.isoformat()
                     })
 
                 # Convert attributes to the expected format
@@ -143,7 +149,6 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 devices[device.device_id] = {
                     "id": device.device_id,
                     "external_id": device.external_id,
-                    "type": device.device_type,
                     "name": device.name,
                     "manufacturer": device.manufacturer,
                     "model": device.model,
@@ -256,13 +261,15 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
         """Get data for a specific device."""
         if not self.data or DATA_DEVICES not in self.data:
             return None
-        return self.data[DATA_DEVICES].get(device_id)
+        device_data: Optional[Dict[str, Any]] = self.data[DATA_DEVICES].get(device_id)
+        return device_data
 
     async def async_get_home_data(self, home_id: str) -> Optional[Dict[str, Any]]:
         """Get data for a specific home."""
         if not self.data or DATA_HOMES not in self.data:
             return None
-        return self.data[DATA_HOMES].get(home_id)
+        home_data: Optional[Dict[str, Any]] = self.data[DATA_HOMES].get(home_id)
+        return home_data
 
     async def async_update_device(self, device_id: str) -> bool:
         """Update a specific device and return True if successful."""
@@ -278,6 +285,12 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             updated_device_data = await self.client.get_device_details(home_id, device_id)
             updated_device = TibberDevice.from_api_data(updated_device_data, home_id)
 
+            # Skip devices with name "Dummy" (case-insensitive)
+            device_name = updated_device.name or ""
+            if device_name.strip().lower() == "dummy":
+                _LOGGER.debug("Skipping update for dummy device: %s", device_id)
+                return False
+
             # Update the device data in coordinator
             if self.data and DATA_DEVICES in self.data:
                 # Convert device back to the expected format (same as _async_update_data)
@@ -288,10 +301,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                         "displayName": capability.display_name,
                         "value": capability.value,
                         "unit": capability.unit,
-                        "lastUpdated": capability.last_updated.isoformat(),
-                        "minValue": capability.min_value,
-                        "maxValue": capability.max_value,
-                        "precision": capability.precision
+                        "lastUpdated": capability.last_updated.isoformat()
                     })
 
                 attributes = []
@@ -308,7 +318,6 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 self.data[DATA_DEVICES][device_id] = {
                     "id": updated_device.device_id,
                     "external_id": updated_device.external_id,
-                    "type": updated_device.device_type,
                     "name": updated_device.name,
                     "manufacturer": updated_device.manufacturer,
                     "model": updated_device.model,

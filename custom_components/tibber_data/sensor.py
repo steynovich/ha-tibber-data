@@ -33,6 +33,12 @@ async def async_setup_entry(
 
     if coordinator.data and "devices" in coordinator.data:
         for device_id, device_data in coordinator.data["devices"].items():
+            # Skip devices with name "Dummy" (case-insensitive)
+            device_name = device_data.get("name", "").strip()
+            if device_name.lower() == "dummy":
+                _LOGGER.debug("Skipping sensors for dummy device: %s", device_id)
+                continue
+
             # Create sensor entities for device capabilities
             for capability in device_data.get("capabilities", []):
                 capability_name = capability["name"]
@@ -117,12 +123,30 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
 
     def _infer_state_class(self, capability_name: str, unit: str) -> Optional[SensorStateClass]:
         """Infer state class from capability name and unit."""
-        # Energy consumption is usually total increasing
-        if "energy" in capability_name.lower() or "consumption" in capability_name.lower():
-            return SensorStateClass.TOTAL_INCREASING
+        # Energy units (kWh, Wh) should use appropriate state class based on capability name
+        if unit in ["kWh", "Wh"]:
+            # Energy consumption/usage is typically total_increasing
+            if any(keyword in capability_name.lower() for keyword in ["consumption", "usage", "used", "imported"]):
+                return SensorStateClass.TOTAL_INCREASING
+            # Energy storage/capacity is usually total (can go up and down)
+            elif any(keyword in capability_name.lower() for keyword in ["storage", "capacity", "stored", "available"]):
+                return SensorStateClass.TOTAL
+            # Energy production is typically total_increasing
+            elif any(keyword in capability_name.lower() for keyword in ["production", "generated", "exported"]):
+                return SensorStateClass.TOTAL_INCREASING
+            # Default for energy units is total (safest choice)
+            else:
+                return SensorStateClass.TOTAL
+
+        # Other energy-related capabilities without energy units
+        if "energy" in capability_name.lower():
+            if "consumption" in capability_name.lower():
+                return SensorStateClass.TOTAL_INCREASING
+            else:
+                return SensorStateClass.TOTAL
 
         # Power, temperature, battery level are measurements
-        if any(keyword in capability_name.lower() for keyword in ["power", "temperature", "battery", "level", "current", "voltage"]):
+        if any(keyword in capability_name.lower() for keyword in ["power", "temperature", "battery", "level", "current", "voltage", "signal"]):
             return SensorStateClass.MEASUREMENT
 
         # Default to measurement for numeric values
@@ -170,7 +194,8 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
         """Return the suggested number of decimal places for display."""
         capability_data = self.capability_data
         if capability_data and "precision" in capability_data:
-            return capability_data["precision"]
+            precision: Optional[int] = capability_data["precision"]
+            return precision
         return None
 
     @property

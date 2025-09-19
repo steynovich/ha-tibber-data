@@ -10,8 +10,7 @@ class TestHomesContract:
     @pytest.fixture
     def mock_session(self):
         """Mock aiohttp client session."""
-        from unittest.mock import AsyncMock, MagicMock
-        import asyncio
+        from unittest.mock import AsyncMock
 
         class MockAsyncContextManager:
             def __init__(self, return_value):
@@ -48,10 +47,14 @@ class TestHomesContract:
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
-            "data": [
+            "homes": [
                 {
                     "id": "12345678-1234-1234-1234-123456789012",
-                    "displayName": "My Home",
+                    "externalId": "external_home_001",
+                    "info": {
+                        "name": "My Home",
+                        "brand": "Tibber"
+                    },
                     "address": {
                         "street": "123 Main St",
                         "city": "Oslo",
@@ -63,7 +66,11 @@ class TestHomesContract:
                 },
                 {
                     "id": "87654321-4321-4321-4321-210987654321",
-                    "displayName": "Summer House",
+                    "externalId": "external_home_002",
+                    "info": {
+                        "name": "Summer House",
+                        "brand": "Tibber"
+                    },
                     "address": {
                         "street": "456 Lake Rd",
                         "city": "Bergen",
@@ -86,7 +93,8 @@ class TestHomesContract:
 
         home1 = homes[0]
         assert home1["id"] == "12345678-1234-1234-1234-123456789012"
-        assert home1["displayName"] == "My Home"
+        assert home1["externalId"] == "external_home_001"
+        assert home1["info"]["name"] == "My Home"
         assert home1["timeZone"] == "Europe/Oslo"
         assert home1["deviceCount"] == 3
         assert "address" in home1
@@ -153,7 +161,7 @@ class TestHomesContract:
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
-            "data": []
+            "homes": []
         })
         # Set up the session.request to return our async context manager
         mock_session._current_context_manager = mock_session._mock_context_manager(mock_response)

@@ -10,8 +10,7 @@ class TestDeviceDetailsContract:
     @pytest.fixture
     def mock_session(self):
         """Mock aiohttp client session."""
-        from unittest.mock import AsyncMock, MagicMock
-        import asyncio
+        from unittest.mock import AsyncMock
 
         class MockAsyncContextManager:
             def __init__(self, return_value):
@@ -47,61 +46,65 @@ class TestDeviceDetailsContract:
         home_id = "12345678-1234-1234-1234-123456789012"
         device_id = "device-1234-5678-9012"
 
-        # Mock successful response
+        # Mock successful response - according to OpenAPI spec, device details are returned directly
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
-            "data": {
+            "id": device_id,
+            "externalId": "ext_device_001",
+            "info": {
+                "name": "My Tesla",
+                "brand": "Tesla",
+                "model": "Model 3"
+            },
+            "status": {
+                "lastSeen": "2025-09-18T10:30:00Z"
+            },
+            "identity": {
                 "id": device_id,
                 "externalId": "ext_device_001",
-                "type": "EV",
-                "manufacturer": "Tesla",
-                "model": "Model 3",
                 "name": "My Tesla",
-                "online": True,
-                "lastSeen": "2025-09-18T10:30:00Z",
-                "identity": {
-                    "id": device_id,
-                    "externalId": "ext_device_001",
-                    "name": "My Tesla",
-                    "manufacturer": "Tesla",
-                    "model": "Model 3"
+                "manufacturer": "Tesla",
+                "model": "Model 3"
+            },
+            "attributes": [
+                {
+                    "id": "connectivity.online",
+                    "value": True,
+                    "$type": "BooleanAttribute"
                 },
-                "attributes": {
-                    "connectivity": {
-                        "online": True,
-                        "lastSeen": "2025-09-18T10:30:00Z",
-                        "signalStrength": 85
-                    },
-                    "firmware": {
-                        "version": "2025.4.1",
-                        "updateAvailable": False,
-                        "lastUpdated": "2025-08-15T14:20:00Z"
-                    }
+                {
+                    "id": "connectivity.signalStrength",
+                    "value": 85,
+                    "$type": "IntegerAttribute"
                 },
-                "capabilities": [
-                    {
-                        "name": "battery_level",
-                        "displayName": "Battery Level",
-                        "value": 87.5,
-                        "unit": "%",
-                        "lastUpdated": "2025-09-18T10:30:00Z",
-                        "minValue": 0,
-                        "maxValue": 100,
-                        "precision": 1
-                    },
-                    {
-                        "name": "charging_power",
-                        "displayName": "Charging Power",
-                        "value": 11.2,
-                        "unit": "kW",
-                        "lastUpdated": "2025-09-18T10:30:00Z",
-                        "minValue": 0,
-                        "maxValue": 22,
-                        "precision": 1
-                    }
-                ]
-            }
+                {
+                    "id": "firmware.version",
+                    "value": "2025.4.1",
+                    "$type": "StringAttribute"
+                },
+                {
+                    "id": "firmware.updateAvailable",
+                    "value": False,
+                    "$type": "BooleanAttribute"
+                }
+            ],
+            "capabilities": [
+                {
+                    "id": "battery_level",
+                    "description": "Battery Level",
+                    "value": 87.5,
+                    "unit": "%",
+                    "$type": "FloatingPointCapability"
+                },
+                {
+                    "id": "charging_power",
+                    "description": "Charging Power",
+                    "value": 11.2,
+                    "unit": "kW",
+                    "$type": "FloatingPointCapability"
+                }
+            ]
         })
         # Set up the session.request to return our async context manager
         mock_session._current_context_manager = mock_session._mock_context_manager(mock_response)
@@ -111,36 +114,24 @@ class TestDeviceDetailsContract:
 
         # Verify contract compliance
         assert device["id"] == device_id
-        assert device["type"] == "EV"
-        assert device["online"] is True
-
-        # Verify identity section
+        assert device["info"]["brand"] == "Tesla"
+        assert device["info"]["name"] == "My Tesla"
         assert "identity" in device
-        assert device["identity"]["manufacturer"] == "Tesla"
-
-        # Verify attributes section
         assert "attributes" in device
-        assert "connectivity" in device["attributes"]
-        assert "firmware" in device["attributes"]
-
-        # Verify capabilities section
         assert "capabilities" in device
         assert len(device["capabilities"]) == 2
 
-        battery_cap = device["capabilities"][0]
-        assert battery_cap["name"] == "battery_level"
-        assert battery_cap["value"] == 87.5
-        assert battery_cap["unit"] == "%"
-
-        # Verify correct request was made
-        # Note: We can't easily assert on the mock_request call since it's a custom function
-        # But the test passing means the request was made successfully
+        # Verify capabilities structure
+        battery_capability = device["capabilities"][0]
+        assert battery_capability["id"] == "battery_level"
+        assert battery_capability["value"] == 87.5
+        assert battery_capability["unit"] == "%"
 
     @pytest.mark.asyncio
     async def test_device_not_found(self, client, mock_session):
         """Test handling of non-existent device."""
         home_id = "12345678-1234-1234-1234-123456789012"
-        device_id = "nonexistent-device-id"
+        device_id = "nonexistent-device"
 
         # Mock 404 response
         mock_response = MagicMock()
@@ -161,38 +152,41 @@ class TestDeviceDetailsContract:
         home_id = "12345678-1234-1234-1234-123456789012"
         device_id = "device-1234-5678-9012"
 
-        # Mock response with capabilities
+        # Mock response with capability validation
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
-            "data": {
-                "id": device_id,
-                "externalId": "ext_device_001",
-                "type": "CHARGER",
-                "name": "My Charger",
-                "online": True,
-                "capabilities": [
-                    {
-                        "name": "charging_current",
-                        "displayName": "Charging Current",
-                        "value": 16.0,
-                        "unit": "A",
-                        "lastUpdated": "2025-09-18T10:30:00Z"
-                        # minValue, maxValue, precision are optional
-                    }
-                ]
-            }
+            "id": device_id,
+            "externalId": "ext_device_001",
+            "info": {
+                "name": "Living Room Thermostat",
+                "brand": "Nest",
+                "model": "Learning Thermostat"
+            },
+            "status": {
+                "lastSeen": "2025-09-18T10:30:00Z"
+            },
+            "capabilities": [
+                {
+                    "id": "temperature",
+                    "description": "Temperature",
+                    "value": 22.5,
+                    "unit": "°C",
+                    "$type": "FloatingPointCapability"
+                }
+            ]
         })
         # Set up the session.request to return our async context manager
         mock_session._current_context_manager = mock_session._mock_context_manager(mock_response)
 
         device = await client.get_device_details(home_id, device_id)
 
-        # Verify capabilities have required fields
+        # Verify capabilities have required fields according to actual API structure
         capability = device["capabilities"][0]
-        required_fields = ["name", "displayName", "value", "unit", "lastUpdated"]
-        for field in required_fields:
-            assert field in capability
+        assert "id" in capability
+        assert "description" in capability
+        assert "value" in capability
+        assert "unit" in capability
 
     @pytest.mark.asyncio
     async def test_different_capability_value_types(self, client, mock_session):
@@ -204,43 +198,46 @@ class TestDeviceDetailsContract:
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
-            "data": {
-                "id": device_id,
-                "externalId": "ext_device_001",
-                "type": "THERMOSTAT",
-                "name": "Living Room Thermostat",
-                "online": True,
-                "capabilities": [
-                    {
-                        "name": "temperature",
-                        "displayName": "Temperature",
-                        "value": 21.5,  # number
-                        "unit": "°C",
-                        "lastUpdated": "2025-09-18T10:30:00Z"
-                    },
-                    {
-                        "name": "heating_enabled",
-                        "displayName": "Heating Enabled",
-                        "value": True,  # boolean
-                        "unit": "",
-                        "lastUpdated": "2025-09-18T10:30:00Z"
-                    },
-                    {
-                        "name": "mode",
-                        "displayName": "Mode",
-                        "value": "heat",  # string
-                        "unit": "",
-                        "lastUpdated": "2025-09-18T10:30:00Z"
-                    }
-                ]
-            }
+            "id": device_id,
+            "externalId": "ext_device_001",
+            "info": {
+                "name": "Garage Charger",
+                "brand": "Easee",
+                "model": "Home"
+            },
+            "status": {
+                "lastSeen": "2025-09-18T10:30:00Z"
+            },
+            "capabilities": [
+                {
+                    "id": "power",
+                    "description": "Charging Power",
+                    "value": 1250.5,  # number
+                    "unit": "W",
+                    "$type": "FloatingPointCapability"
+                },
+                {
+                    "id": "online",
+                    "description": "Online Status",
+                    "value": True,  # boolean
+                    "unit": "",
+                    "$type": "IntegerCapability"
+                },
+                {
+                    "id": "status",
+                    "description": "Charging Status",
+                    "value": "charging",  # string
+                    "availableValues": ["idle", "charging", "error"],
+                    "$type": "EnumCapability"
+                }
+            ]
         })
         # Set up the session.request to return our async context manager
         mock_session._current_context_manager = mock_session._mock_context_manager(mock_response)
 
         device = await client.get_device_details(home_id, device_id)
 
-        capabilities = device["capabilities"]
-        assert isinstance(capabilities[0]["value"], float)  # number
-        assert isinstance(capabilities[1]["value"], bool)   # boolean
-        assert isinstance(capabilities[2]["value"], str)    # string
+        capabilities = {cap["id"]: cap["value"] for cap in device["capabilities"]}
+        assert isinstance(capabilities["power"], float)  # number
+        assert isinstance(capabilities["online"], bool)  # boolean
+        assert isinstance(capabilities["status"], str)   # string

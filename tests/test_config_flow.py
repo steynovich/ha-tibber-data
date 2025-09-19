@@ -1,9 +1,8 @@
 """Test OAuth2 configuration flow integration."""
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.core import HomeAssistant
-from custom_components.tibber_data import config_flow
 from custom_components.tibber_data.const import DOMAIN
 
 

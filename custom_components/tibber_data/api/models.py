@@ -25,8 +25,6 @@ class TibberOAuthSession:
         """Validate OAuth2 session data."""
         if not self.access_token:
             raise ValueError("Access token is required")
-        if not self.refresh_token:
-            raise ValueError("Refresh token is required")
         if not self.user_id:
             raise ValueError("User ID is required")
         if self.token_type != "Bearer":
@@ -145,10 +143,14 @@ class TibberHome:
     @classmethod
     def from_api_data(cls, data: Dict[str, Any]) -> Self:
         """Create TibberHome from API response data."""
+        # According to OpenAPI spec, homes have "info" containing name, not "displayName"
+        info = data.get("info", {})
+        display_name = info.get("name", data.get("displayName", f"Home {data['id'][:8]}"))
+
         return cls(
             home_id=data["id"],
-            display_name=data["displayName"],
-            time_zone=data["timeZone"],
+            display_name=display_name,
+            time_zone=data.get("timeZone", "UTC"),  # Use UTC as fallback
             address=data.get("address"),
             device_count=data.get("deviceCount", 0)
         )
@@ -170,9 +172,7 @@ class DeviceCapability:
     value: Union[float, str, bool, int]
     unit: str
     last_updated: datetime
-    min_value: Optional[float] = None
-    max_value: Optional[float] = None
-    precision: Optional[int] = None
+    # Note: According to OpenAPI spec v1.json, capabilities don't have minValue/maxValue/precision
 
     def __post_init__(self) -> None:
         """Validate DeviceCapability data."""
@@ -185,12 +185,7 @@ class DeviceCapability:
         if not self.display_name:
             raise ValueError("Display name is required")
 
-        # Validate value bounds if specified
-        if isinstance(self.value, (int, float)):
-            if self.min_value is not None and self.value < self.min_value:
-                raise ValueError(f"Value {self.value} is below minimum {self.min_value}")
-            if self.max_value is not None and self.value > self.max_value:
-                raise ValueError(f"Value {self.value} is above maximum {self.max_value}")
+        # Note: API spec doesn't provide min/max bounds for validation
 
         # Validate last_updated is not in the future
         if self.last_updated > datetime.now(timezone.utc):
@@ -199,22 +194,23 @@ class DeviceCapability:
     @classmethod
     def from_api_data(cls, data: Dict[str, Any], device_id: str) -> Self:
         """Create DeviceCapability from API response data."""
-        capability_id = f"{device_id}_{data['name']}"
+        # According to OpenAPI spec, capabilities have "id" and "description", not "name" and "displayName"
+        capability_name = data.get("id", "unknown_capability")
+        capability_id = f"{device_id}_{capability_name}"
 
-        # Parse timestamp
-        last_updated = datetime.fromisoformat(data["lastUpdated"].replace("Z", "+00:00"))
+        # Handle missing timestamp - use current time as fallback
+        last_updated = datetime.now(timezone.utc)
+        if "lastUpdated" in data:
+            last_updated = datetime.fromisoformat(data["lastUpdated"].replace("Z", "+00:00"))
 
         return cls(
             capability_id=capability_id,
             device_id=device_id,
-            name=data["name"],
-            display_name=data["displayName"],
+            name=capability_name,
+            display_name=data.get("description", capability_name.replace("_", " ").title()),
             value=data["value"],
-            unit=data["unit"],
-            last_updated=last_updated,
-            min_value=data.get("minValue"),
-            max_value=data.get("maxValue"),
-            precision=data.get("precision")
+            unit=data.get("unit", ""),
+            last_updated=last_updated
         )
 
     @property
@@ -224,9 +220,7 @@ class DeviceCapability:
 
     @property
     def formatted_value(self) -> str:
-        """Get formatted value with proper precision."""
-        if isinstance(self.value, float) and self.precision is not None:
-            return f"{self.value:.{self.precision}f}"
+        """Get formatted value as string."""
         return str(self.value)
 
 
@@ -276,35 +270,51 @@ class DeviceAttribute:
         return isinstance(self.value, expected_type)
 
     @classmethod
-    def from_api_data(cls, data: Dict[str, Any], device_id: str, attribute_path: str) -> Self:
+    def from_api_data(cls, data: Dict[str, Any], device_id: str, attribute_id: str) -> Self:
         """Create DeviceAttribute from API response data."""
-        attribute_id = f"{device_id}_{attribute_path.replace('.', '_')}"
+        # According to OpenAPI spec, attributes have "id" field and various structures based on type
+        full_attribute_id = f"{device_id}_{attribute_id.replace('.', '_')}"
 
-        # Parse timestamp if it's a string
-        last_updated = data.get("lastUpdated", datetime.now(timezone.utc))
-        if isinstance(last_updated, str):
-            last_updated = datetime.fromisoformat(last_updated.replace("Z", "+00:00"))
+        # Handle different attribute types based on the OpenAPI spec
+        # Extract value based on attribute type
+        value = None
+        data_type = "string"
 
-        # Determine data type from value
-        value = data["value"]
-        if isinstance(value, bool):
-            data_type = "boolean"
-        elif isinstance(value, (int, float)):
-            data_type = "number"
-        elif isinstance(value, datetime):
-            data_type = "datetime"
+        if "value" in data:
+            value = data["value"]
+            if isinstance(value, bool):
+                data_type = "boolean"
+            elif isinstance(value, (int, float)):
+                data_type = "number"
+            elif isinstance(value, str):
+                # Check if it's a datetime string
+                try:
+                    datetime.fromisoformat(value.replace("Z", "+00:00"))
+                    data_type = "datetime"
+                    value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                except (ValueError, AttributeError):
+                    data_type = "string"
+        elif "status" in data:
+            # For connectivity attributes (WiFi, Cellular)
+            value = data["status"]
+            data_type = "string"
         else:
+            # Fallback for other attribute types
+            value = str(data.get("description", "unknown"))
             data_type = "string"
 
+        # Use current timestamp as fallback
+        last_updated = datetime.now(timezone.utc)
+
         return cls(
-            attribute_id=attribute_id,
+            attribute_id=full_attribute_id,
             device_id=device_id,
-            name=attribute_path,
-            display_name=data.get("displayName", attribute_path.replace("_", " ").title()),
+            name=attribute_id,
+            display_name=data.get("description", attribute_id.replace("_", " ").replace(".", " ").title()),
             value=value,
             data_type=data_type,
             last_updated=last_updated,
-            is_diagnostic=data.get("is_diagnostic", attribute_path.startswith("connectivity") or attribute_path.startswith("firmware"))
+            is_diagnostic=attribute_id.startswith("connectivity") or attribute_id.startswith("firmware")
         )
 
     @property
@@ -319,7 +329,6 @@ class TibberDevice:
 
     device_id: str
     external_id: str
-    device_type: str
     name: str
     home_id: str
     online_status: bool
@@ -334,39 +343,39 @@ class TibberDevice:
         if not self.device_id:
             raise ValueError("Device ID is required")
 
-        # Validate UUID format for device_id
-        try:
-            UUID(self.device_id)
-        except ValueError:
-            raise ValueError("Device ID must be a valid UUID format")
+        # Validate device_id format (more lenient than strict UUID)
+        if not self.device_id or len(self.device_id) < 5:
+            raise ValueError("Device ID must be a valid identifier")
 
         if not self.home_id:
             raise ValueError("Home ID must reference existing TibberHome")
 
-        # Validate device type
-        valid_types = {"EV", "CHARGER", "THERMOSTAT", "SOLAR_INVERTER", "BATTERY", "HEAT_PUMP"}
-        if self.device_type not in valid_types:
-            raise ValueError(f"Device type must be one of: {valid_types}")
-
-        # last_seen is already properly typed as Optional[datetime]
-
     @classmethod
     def from_api_data(cls, data: Dict[str, Any], home_id: str) -> Self:
         """Create TibberDevice from API response data."""
-        # Parse last_seen timestamp
+        # Parse last_seen timestamp from status object
         last_seen = None
-        if "lastSeen" in data:
-            last_seen = datetime.fromisoformat(data["lastSeen"].replace("Z", "+00:00"))
+        status = data.get("status", {})
+        if "lastSeen" in status:
+            last_seen = datetime.fromisoformat(status["lastSeen"].replace("Z", "+00:00"))
+
+        # Extract device info according to API structure
+        info = data.get("info", {})
+        name = info.get("name", f"Device {data['id'][:8]}")
+        manufacturer = info.get("brand", "Unknown")
+        model = info.get("model", "Unknown")
+
+        # Determine online status (might be in attributes or derived from lastSeen)
+        online_status = cls._determine_online_status(data, last_seen)
 
         device = cls(
             device_id=data["id"],
-            external_id=data["externalId"],
-            device_type=data["type"],
-            name=data["name"],
+            external_id=data.get("externalId", ""),
+            name=name,
             home_id=home_id,
-            online_status=data["online"],
-            manufacturer=data.get("manufacturer"),
-            model=data.get("model"),
+            online_status=online_status,
+            manufacturer=manufacturer,
+            model=model,
             last_seen=last_seen
         )
 
@@ -376,21 +385,45 @@ class TibberDevice:
                 capability = DeviceCapability.from_api_data(cap_data, device.device_id)
                 device.capabilities.append(capability)
 
-        # Add attributes if present
-        if "attributes" in data:
-            for attr_path, attr_data in data["attributes"].items():
-                if isinstance(attr_data, dict):
-                    for sub_attr, sub_value in attr_data.items():
-                        # Type hints for clarity - sub_attr is str, sub_value is Any
-                        full_path: str = f"{attr_path}.{sub_attr}"
-                        attribute = DeviceAttribute.from_api_data(
-                            {"value": sub_value, "displayName": sub_attr.replace("_", " ").title()},
-                            device.device_id,
-                            full_path
-                        )
-                        device.attributes.append(attribute)
+        # Add attributes if present - according to OpenAPI spec, attributes is an array
+        if "attributes" in data and isinstance(data["attributes"], list):
+            for attr_data in data["attributes"]:
+                if isinstance(attr_data, dict) and "id" in attr_data:
+                    attribute = DeviceAttribute.from_api_data(
+                        attr_data,
+                        device.device_id,
+                        attr_data["id"]
+                    )
+                    device.attributes.append(attribute)
 
         return device
+
+
+    @classmethod
+    def _determine_online_status(cls, data: Dict[str, Any], last_seen: Optional[datetime]) -> bool:
+        """Determine device online status from available data."""
+        # Check if there's an explicit online status in attributes (array structure)
+        attributes = data.get("attributes", [])
+        if isinstance(attributes, list):
+            for attr in attributes:
+                if isinstance(attr, dict):
+                    # Look for connectivity-related attributes
+                    attr_id = attr.get("id", "")
+                    if "connectivity" in attr_id or "online" in attr_id:
+                        if "value" in attr and isinstance(attr["value"], bool):
+                            return attr["value"]
+                        elif "status" in attr and attr["status"] in ["connected", "online"]:
+                            return True
+                        elif "status" in attr and attr["status"] in ["disconnected", "offline"]:
+                            return False
+
+        # Fallback: consider online if seen within last 5 minutes
+        if last_seen:
+            five_minutes_ago = datetime.now(timezone.utc).timestamp() - 300
+            return last_seen.timestamp() > five_minutes_ago
+
+        # Default: assume online if no information available
+        return True
 
     @property
     def unique_id(self) -> str:

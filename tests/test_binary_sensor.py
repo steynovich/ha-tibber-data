@@ -1,9 +1,8 @@
 """Test binary sensor entities integration."""
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 from homeassistant.core import HomeAssistant
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
-from homeassistant.const import STATE_ON, STATE_OFF
 from custom_components.tibber_data.binary_sensor import (
     async_setup_entry,
     TibberDataAttributeBinarySensor,
@@ -230,8 +229,6 @@ class TestTibberDataBinarySensor:
 
         # Should include relevant connectivity metadata
         assert "last_seen" in extra_state_attributes
-        # The entity includes other device attributes as extra state attributes
-        assert "device_type" in extra_state_attributes
 
     def test_firmware_binary_sensor_attributes(self, mock_coordinator):
         """Test firmware binary sensor extra attributes."""

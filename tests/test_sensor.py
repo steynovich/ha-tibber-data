@@ -1,8 +1,7 @@
 """Test sensor entities integration."""
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 from homeassistant.core import HomeAssistant
-from homeassistant.const import STATE_UNAVAILABLE
 from custom_components.tibber_data.sensor import (
     async_setup_entry,
     TibberDataCapabilitySensor,
@@ -21,8 +20,7 @@ class TestTibberDataSensor:
             "devices": {
                 "device-123": {
                     "id": "device-123",
-                    "name": "Test EV",
-                    "type": "EV",
+                    "name": "Test Device",
                     "home_id": "home-456",
                     "online": True,
                     "capabilities": [
@@ -31,27 +29,20 @@ class TestTibberDataSensor:
                             "displayName": "Battery Level",
                             "value": 85.0,
                             "unit": "%",
-                            "lastUpdated": "2025-09-18T10:30:00Z",
-                            "minValue": 0,
-                            "maxValue": 100,
-                            "precision": 1
+                            "lastUpdated": "2025-09-18T10:30:00Z"
                         },
                         {
                             "name": "charging_power",
                             "displayName": "Charging Power",
                             "value": 11.2,
                             "unit": "kW",
-                            "lastUpdated": "2025-09-18T10:30:00Z",
-                            "minValue": 0,
-                            "maxValue": 22,
-                            "precision": 1
+                            "lastUpdated": "2025-09-18T10:30:00Z"
                         }
                     ]
                 },
                 "device-789": {
                     "id": "device-789",
                     "name": "Thermostat",
-                    "type": "THERMOSTAT",
                     "home_id": "home-456",
                     "online": False,  # Offline device
                     "capabilities": [
@@ -106,8 +97,6 @@ class TestTibberDataSensor:
 
     def test_capability_sensor_properties(self, mock_coordinator):
         """Test TibberDataCapabilitySensor properties."""
-        device_data = mock_coordinator.data["devices"]["device-123"]
-        capability_data = device_data["capabilities"][0]  # battery_level
 
         sensor = TibberDataCapabilitySensor(
             coordinator=mock_coordinator,
@@ -116,7 +105,7 @@ class TestTibberDataSensor:
         )
 
         # Test basic properties
-        assert sensor.name == "Test EV Battery Level"
+        assert sensor.name == "Test Device Battery Level"
         assert sensor.unique_id == "tibber_data_device-123_battery_level"
         assert sensor.native_value == 85.0
         assert sensor.native_unit_of_measurement == "%"
@@ -125,13 +114,11 @@ class TestTibberDataSensor:
         # Test device info
         device_info = sensor.device_info
         assert device_info["identifiers"] == {(DOMAIN, "device-123")}
-        assert device_info["name"] == "Test EV"
+        assert device_info["name"] == "Test Device"
         assert device_info["manufacturer"] == "Tibber"
 
     def test_sensor_state_unavailable_when_device_offline(self, mock_coordinator):
         """Test sensor shows unavailable when device is offline."""
-        device_data = mock_coordinator.data["devices"]["device-789"]
-        capability_data = device_data["capabilities"][0]  # temperature
 
         sensor = TibberDataCapabilitySensor(
             coordinator=mock_coordinator,
@@ -198,13 +185,9 @@ class TestTibberDataSensor:
 
         # Should include relevant capability metadata
         assert "last_updated" in extra_state_attributes
-        assert "min_value" in extra_state_attributes
-        assert "max_value" in extra_state_attributes
-        assert "precision" in extra_state_attributes
+        assert "device_online" in extra_state_attributes
 
-        assert extra_state_attributes["min_value"] == 0
-        assert extra_state_attributes["max_value"] == 100
-        assert extra_state_attributes["precision"] == 1
+        # According to OpenAPI spec, capabilities don't have min/max/precision fields
 
     def test_missing_capability_handling(self, mock_coordinator):
         """Test handling of missing capability data."""
@@ -257,4 +240,4 @@ class TestTibberDataSensor:
         )
 
         assert entity_entry.unique_id == "tibber_data_device-123_battery_level"
-        assert entity_entry.original_name == "Test EV Battery Level"
+        assert entity_entry.original_name == "Test Device Battery Level"

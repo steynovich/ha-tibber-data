@@ -29,7 +29,8 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
         """Get device data from coordinator."""
         if not self.coordinator.data or "devices" not in self.coordinator.data:
             return None
-        return self.coordinator.data["devices"].get(self._device_id)
+        device_data: Optional[Dict[str, Any]] = self.coordinator.data["devices"].get(self._device_id)
+        return device_data
 
     @property
     def home_data(self) -> Optional[Dict[str, Any]]:
@@ -42,7 +43,8 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
         if not home_id or not self.coordinator.data or "homes" not in self.coordinator.data:
             return None
 
-        return self.coordinator.data["homes"].get(home_id)
+        home_data: Optional[Dict[str, Any]] = self.coordinator.data["homes"].get(home_id)
+        return home_data
 
     @property
     def available(self) -> bool:
@@ -52,7 +54,8 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
             return False
 
         # Entity is available if device is online
-        return device_data.get("online", False)
+        online_status: bool = device_data.get("online", False)
+        return online_status
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -71,15 +74,23 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
         home_data = self.home_data
         suggested_area = home_data.get("displayName") if home_data else None
 
+        # Get device name using our helper logic
+        device_name = self._get_device_display_name(device_data)
+
+        # Link device to its home hub
+        home_id = device_data.get("home_id")
+        via_device = (DOMAIN, f"home_{home_id}") if home_id else None
+
         return DeviceInfo(
             identifiers={(DOMAIN, self._device_id)},
-            name=device_data.get("name", f"Tibber Device {self._device_id}"),
+            name=device_name,
             manufacturer=device_data.get("manufacturer", MANUFACTURER),
-            model=device_data.get("model", device_data.get("type", "Unknown")),
+            model=device_data.get("model", "Unknown"),
             sw_version=self._get_firmware_version(),
             suggested_area=suggested_area,
             configuration_url="https://data-api.tibber.com/clients/manage",
-            connections=self._get_device_connections()
+            connections=self._get_device_connections(),
+            via_device=via_device
         )
 
     def _get_firmware_version(self) -> Optional[str]:
@@ -91,7 +102,8 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
         # Look for firmware version in attributes
         for attr in device_data["attributes"]:
             if attr.get("name") == "firmware.version":
-                return attr.get("value")
+                version: Optional[str] = attr.get("value")
+                return version
 
         return None
 
@@ -123,7 +135,8 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
 
         for capability in device_data["capabilities"]:
             if capability.get("name") == capability_name:
-                return capability
+                capability_data: Optional[Dict[str, Any]] = capability
+                return capability_data
 
         return None
 
@@ -135,7 +148,8 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
 
         for attribute in device_data["attributes"]:
             if attribute.get("name") == attribute_path:
-                return attribute
+                attribute_data: Optional[Dict[str, Any]] = attribute
+                return attribute_data
 
         return None
 
@@ -155,6 +169,19 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
                 return None
 
         return value
+
+    def _get_device_display_name(self, device_data: Dict[str, Any]) -> str:
+        """Get display name for device with fallback logic."""
+        device_name = device_data.get("name") or ""
+        device_name = device_name.strip() if device_name else ""
+
+        # If no name or empty name, use "Brand Model" format
+        if not device_name:
+            manufacturer = device_data.get("manufacturer", "Unknown")
+            model = device_data.get("model", "Device")
+            device_name = f"{manufacturer} {model}"
+
+        return device_name
 
 
 class TibberDataDeviceEntity(TibberDataEntity):
@@ -176,7 +203,7 @@ class TibberDataDeviceEntity(TibberDataEntity):
         if not device_data:
             return f"Unknown Device {self._entity_name_suffix}"
 
-        device_name = device_data.get("name", f"Device {self._device_id}")
+        device_name = self._get_device_display_name(device_data)
         return f"{device_name} {self._entity_name_suffix}"
 
     @property
@@ -212,10 +239,12 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
         device_data = self.device_data
 
         if not device_data:
-            return f"Unknown Device {self._capability_name}"
+            return f"Unknown Device {self._capability_name.replace('_', ' ').title()}"
 
-        device_name = device_data.get("name", f"Device {self._device_id}")
+        # Get device name using fallback logic
+        device_name = self._get_device_display_name(device_data)
 
+        # Get capability display name
         if capability_data and "displayName" in capability_data:
             capability_display_name = capability_data["displayName"]
         else:
@@ -251,19 +280,9 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
         if "lastUpdated" in capability_data:
             attributes["last_updated"] = capability_data["lastUpdated"]
 
-        if "minValue" in capability_data:
-            attributes["min_value"] = capability_data["minValue"]
-
-        if "maxValue" in capability_data:
-            attributes["max_value"] = capability_data["maxValue"]
-
-        if "precision" in capability_data:
-            attributes["precision"] = capability_data["precision"]
-
         # Add device information
         device_data = self.device_data
         if device_data:
-            attributes["device_type"] = device_data.get("type")
             attributes["device_online"] = device_data.get("online")
 
         return attributes
@@ -331,7 +350,6 @@ class TibberDataAttributeEntity(TibberDataDeviceEntity):
                         attributes[key] = attr.get("value")
 
         # Add device information
-        attributes["device_type"] = device_data.get("type")
         attributes["last_seen"] = device_data.get("lastSeen")
 
         return attributes

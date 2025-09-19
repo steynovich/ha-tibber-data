@@ -10,8 +10,7 @@ class TestDevicesContract:
     @pytest.fixture
     def mock_session(self):
         """Mock aiohttp client session."""
-        from unittest.mock import AsyncMock, MagicMock
-        import asyncio
+        from unittest.mock import AsyncMock
 
         class MockAsyncContextManager:
             def __init__(self, return_value):
@@ -50,26 +49,30 @@ class TestDevicesContract:
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
-            "data": [
+            "devices": [
                 {
                     "id": "device-1234-5678-9012",
                     "externalId": "ext_device_001",
-                    "type": "EV",
-                    "manufacturer": "Tesla",
-                    "model": "Model 3",
-                    "name": "My Tesla",
-                    "online": True,
-                    "lastSeen": "2025-09-18T10:30:00Z"
+                    "info": {
+                        "name": "My Tesla",
+                        "brand": "Tesla",
+                        "model": "Model 3"
+                    },
+                    "status": {
+                        "lastSeen": "2025-09-18T10:30:00Z"
+                    }
                 },
                 {
                     "id": "device-2345-6789-0123",
                     "externalId": "ext_charger_001",
-                    "type": "CHARGER",
-                    "manufacturer": "Easee",
-                    "model": "Home",
-                    "name": "Garage Charger",
-                    "online": False,
-                    "lastSeen": "2025-09-18T08:15:00Z"
+                    "info": {
+                        "name": "Garage Charger",
+                        "brand": "Easee",
+                        "model": "Home"
+                    },
+                    "status": {
+                        "lastSeen": "2025-09-18T08:15:00Z"
+                    }
                 }
             ]
         })
@@ -84,14 +87,13 @@ class TestDevicesContract:
 
         device1 = devices[0]
         assert device1["id"] == "device-1234-5678-9012"
-        assert device1["type"] == "EV"
-        assert device1["manufacturer"] == "Tesla"
-        assert device1["online"] is True
+        assert device1["info"]["brand"] == "Tesla"
+        assert device1["info"]["name"] == "My Tesla"
+        assert "status" in device1
 
         device2 = devices[1]
         assert device2["id"] == "device-2345-6789-0123"
-        assert device2["type"] == "CHARGER"
-        assert device2["online"] is False
+        assert device2["info"]["brand"] == "Easee"
 
         # Verify correct request was made
         # Note: We can't easily assert on the mock_request call since it's a custom function
@@ -124,7 +126,7 @@ class TestDevicesContract:
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
-            "data": []
+            "devices": []
         })
         # Set up the session.request to return our async context manager
         mock_session._current_context_manager = mock_session._mock_context_manager(mock_response)
@@ -133,37 +135,38 @@ class TestDevicesContract:
         assert devices == []
 
     @pytest.mark.asyncio
-    async def test_device_types_validation(self, client, mock_session):
-        """Test that device types are from valid enumeration."""
+    async def test_basic_device_structure(self, client, mock_session):
+        """Test that devices have the expected basic structure from API."""
         home_id = "12345678-1234-1234-1234-123456789012"
 
-        valid_types = ["EV", "CHARGER", "THERMOSTAT", "SOLAR_INVERTER", "BATTERY", "HEAT_PUMP"]
-
-        # Mock response with all valid device types
+        # Mock response with basic device structure (no device types)
         mock_response = MagicMock()
-        devices_data = []
-        for i, device_type in enumerate(valid_types):
-            devices_data.append({
-                "id": f"device-{i:04d}-{i:04d}-{i:04d}",
-                "externalId": f"ext_device_{i:03d}",
-                "type": device_type,
-                "manufacturer": "TestMfg",
-                "model": "TestModel",
-                "name": f"Test {device_type}",
-                "online": True,
-                "lastSeen": "2025-09-18T10:30:00Z"
-            })
+        devices_data = [
+            {
+                "id": "device-0001-0001-0001",
+                "externalId": "ext_device_001",
+                "info": {
+                    "name": "Test Device",
+                    "brand": "TestMfg",
+                    "model": "TestModel"
+                },
+                "status": {
+                    "lastSeen": "2025-09-18T10:30:00Z"
+                }
+            }
+        ]
 
         mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={"data": devices_data})
+        mock_response.json = AsyncMock(return_value={"devices": devices_data})
         # Set up the session.request to return our async context manager
         mock_session._current_context_manager = mock_session._mock_context_manager(mock_response)
 
         devices = await client.get_home_devices(home_id)
 
-        # Verify all device types are valid
+        # Verify all devices have the expected structure
         for device in devices:
-            assert device["type"] in valid_types
+            assert "id" in device
+            assert "info" in device
 
     @pytest.mark.asyncio
     async def test_required_device_fields(self, client, mock_session):
@@ -174,14 +177,15 @@ class TestDevicesContract:
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
-            "data": [
+            "devices": [
                 {
                     "id": "device-1234-5678-9012",
                     "externalId": "ext_device_001",
-                    "type": "EV",
-                    "name": "My Device",
-                    "online": True
-                    # manufacturer, model, lastSeen are optional
+                    "info": {
+                        "name": "My Device"
+                        # brand, model are optional
+                    }
+                    # status, attributes are optional
                 }
             ]
         })
@@ -191,13 +195,12 @@ class TestDevicesContract:
         devices = await client.get_home_devices(home_id)
         device = devices[0]
 
-        # Required fields must be present
-        required_fields = ["id", "externalId", "type", "name", "online"]
-        for field in required_fields:
-            assert field in device
+        # Required fields must be present according to actual API structure
+        assert "id" in device
+        assert "externalId" in device
+        assert "info" in device
+        assert "name" in device["info"]
 
-        # Optional fields may be missing
-        optional_fields = ["manufacturer", "model", "lastSeen"]
-        for field in optional_fields:
-            # These fields may or may not be present
-            pass
+        # Optional fields may be missing in the new API structure
+        # brand and model are in info object, lastSeen is in status object
+        # These may or may not be present, so we don't test for them here

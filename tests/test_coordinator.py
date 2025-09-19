@@ -72,16 +72,13 @@ class TestTibberDataCoordinator:
         mock_capability.value = 85.0
         mock_capability.unit = "%"
         mock_capability.last_updated = datetime.now(timezone.utc)
-        mock_capability.min_value = 0
-        mock_capability.max_value = 100
-        mock_capability.precision = 1
+        # Note: Per OpenAPI spec, capabilities don't have min/max/precision
 
         # Create mock device object
         mock_device = MagicMock(spec=TibberDevice)
         mock_device.device_id = "device-456"
         mock_device.external_id = "ext-456"
-        mock_device.device_type = "EV"
-        mock_device.name = "My Tesla"
+        mock_device.name = "My Device"
         mock_device.manufacturer = "Tesla"
         mock_device.model = "Model 3"
         mock_device.home_id = "home-123"
@@ -103,7 +100,7 @@ class TestTibberDataCoordinator:
 
         assert "devices" in data
         assert len(data["devices"]) == 1
-        assert data["devices"]["device-456"]["name"] == "My Tesla"
+        assert data["devices"]["device-456"]["name"] == "My Device"
         assert data["devices"]["device-456"]["capabilities"][0]["value"] == 85.0
 
         # Verify API calls were made
@@ -185,7 +182,6 @@ class TestTibberDataCoordinator:
         working_device = TibberDevice(
             device_id=device_uuid,
             external_id="ext-456",
-            device_type="EV",
             name="Working Device",
             home_id="12345678-1234-5678-1234-567812345678",
             online_status=True,
@@ -258,7 +254,6 @@ class TestTibberDataCoordinator:
         device1 = TibberDevice(
             device_id=device1_uuid,
             external_id="ext-111",
-            device_type="EV",
             name="Tesla",
             home_id=home1_uuid,
             online_status=True,
@@ -268,7 +263,6 @@ class TestTibberDataCoordinator:
         device2 = TibberDevice(
             device_id=device2_uuid,
             external_id="ext-222",
-            device_type="THERMOSTAT",
             name="Thermostat",
             home_id=home2_uuid,
             online_status=True,
@@ -345,7 +339,6 @@ class TestTibberDataCoordinator:
         mock_device_80 = TibberDevice(
             device_id=device_uuid,
             external_id="ext-456",
-            device_type="EV",
             name="Tesla",
             home_id="12345678-1234-5678-1234-567812345678",
             online_status=True,
@@ -376,8 +369,7 @@ class TestTibberDataCoordinator:
             mock_device_85 = TibberDevice(
                 device_id=device_uuid,
                 external_id="ext-456",
-                device_type="EV",
-                name="Tesla",
+                    name="Tesla",
                 home_id="12345678-1234-5678-1234-567812345678",
                 online_status=True,
                 capabilities=[capability_85]

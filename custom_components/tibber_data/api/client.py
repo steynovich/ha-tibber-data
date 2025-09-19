@@ -98,7 +98,11 @@ class TibberDataClient:
             "offline_access",
             "data-api-user-read",
             "data-api-homes-read",
-            "data-api-device-categories-read"  # Additional device category scopes may be added
+            "data-api-vehicles-read",
+            "data-api-chargers-read",
+            "data-api-thermostats-read",
+            "data-api-energy-systems-read",
+            "data-api-inverters-read"
         }
         invalid_scopes = set(scopes) - valid_scopes
         if invalid_scopes:
@@ -162,7 +166,7 @@ class TibberDataClient:
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
         async with self.session.post(url, data=data, headers=headers) as response:
-            response_data = await response.json()
+            response_data: Dict[str, Any] = await response.json()
 
             if response.status == 400:
                 error_desc = response_data.get("error_description", "Invalid request")
@@ -202,7 +206,7 @@ class TibberDataClient:
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
         async with self.session.post(url, data=data, headers=headers) as response:
-            response_data = await response.json()
+            response_data: Dict[str, Any] = await response.json()
 
             if response.status == 401:
                 error_desc = response_data.get("error_description", "Invalid refresh token")
@@ -277,31 +281,31 @@ class TibberDataClient:
                 ) as response:
                     # Handle successful responses
                     if response.status == 200:
-                        response_data = await response.json()
+                        response_data: Dict[str, Any] = await response.json()
                         return response_data
 
                     # Handle permanent errors (do not retry)
                     if response.status in NO_RETRY_STATUS_CODES:
-                        response_data = await response.json()
+                        error_data: Dict[str, Any] = await response.json()
 
                         if response.status == 401:
                             raise ValueError("Invalid or expired token")
                         elif response.status == 403:
                             raise ValueError("Insufficient permissions")
                         elif response.status == 404:
-                            error_msg = response_data.get("message", "Not found")
+                            error_msg = error_data.get("message", "Not found")
                             if "home" in error_msg.lower():
                                 raise ValueError("Home not found")
                             elif "device" in error_msg.lower():
                                 raise ValueError("Device not found")
                             raise ValueError(error_msg)
                         else:  # 400
-                            error_msg = response_data.get("message", "Bad request")
+                            error_msg = error_data.get("message", "Bad request")
                             raise ValueError(f"Invalid request: {error_msg}")
 
                     # Handle transient errors (retry eligible)
                     if response.status in RETRY_STATUS_CODES:
-                        response_data = await response.json()
+                        retry_data: Dict[str, Any] = await response.json()
 
                         # Get retry delay
                         retry_after = response.headers.get("Retry-After")
@@ -311,7 +315,7 @@ class TibberDataClient:
                         if response.status == 429:
                             last_exception = ValueError("Rate limit exceeded")
                         else:  # 500, 502, 503
-                            error_msg = response_data.get("message", f"Server error (HTTP {response.status})")
+                            error_msg = retry_data.get("message", f"Server error (HTTP {response.status})")
                             last_exception = ValueError(f"Transient server error: {error_msg}")
 
                         # Don't delay on the last attempt
@@ -320,8 +324,8 @@ class TibberDataClient:
                         continue
 
                     # Handle other status codes
-                    response_data = await response.json()
-                    error_msg = response_data.get("message", f"HTTP {response.status}")
+                    other_data: Dict[str, Any] = await response.json()
+                    error_msg = other_data.get("message", f"HTTP {response.status}")
                     raise ValueError(f"API request failed: {error_msg}")
 
             except aiohttp.ClientError as exc:
@@ -342,7 +346,9 @@ class TibberDataClient:
     async def get_homes(self) -> List[Dict[str, Any]]:
         """Get list of user homes."""
         response = await self._make_authenticated_request("GET", "/v1/homes")
-        return response.get("data", [])
+        # According to OpenAPI spec, response has "homes" array, not "data"
+        homes: List[Dict[str, Any]] = response.get("homes", [])
+        return homes
 
     async def get_home_details(self, home_id: str) -> Dict[str, Any]:
         """Get detailed information for specific home."""
@@ -351,18 +357,22 @@ class TibberDataClient:
             raise ValueError("Invalid home ID format")
 
         response = await self._make_authenticated_request("GET", f"/v1/homes/{home_id}")
-        return response.get("data", {})
+        data: Dict[str, Any] = response.get("data", {})
+        return data
 
     async def get_home_devices(self, home_id: str) -> List[Dict[str, Any]]:
         """Get all devices associated with specific home."""
         response = await self._make_authenticated_request("GET", f"/v1/homes/{home_id}/devices")
-        return response.get("data", [])
+        # According to OpenAPI spec, response has "devices" array, not "data"
+        devices: List[Dict[str, Any]] = response.get("devices", [])
+        return devices
 
     async def get_device_details(self, home_id: str, device_id: str) -> Dict[str, Any]:
         """Get detailed information for specific device."""
         endpoint = f"/v1/homes/{home_id}/devices/{device_id}"
         response = await self._make_authenticated_request("GET", endpoint)
-        return response.get("data", {})
+        # According to OpenAPI spec, response is a DeviceResponse object directly, not nested in "data"
+        return response
 
     async def get_device_history(
         self,
@@ -397,7 +407,8 @@ class TibberDataClient:
 
         endpoint = f"/v1/homes/{home_id}/devices/{device_id}/history"
         response = await self._make_authenticated_request("GET", endpoint, params=params)
-        return response.get("data", [])
+        data: List[Dict[str, Any]] = response.get("data", [])
+        return data
 
     # High-level methods for Home Assistant integration
 
@@ -462,6 +473,6 @@ class TibberDataClient:
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Async context manager exit."""
         await self.close()

@@ -32,6 +32,12 @@ async def async_setup_entry(
 
     if coordinator.data and "devices" in coordinator.data:
         for device_id, device_data in coordinator.data["devices"].items():
+            # Skip devices with name "Dummy" (case-insensitive)
+            device_name = device_data.get("name", "").strip()
+            if device_name.lower() == "dummy":
+                _LOGGER.debug("Skipping binary sensors for dummy device: %s", device_id)
+                continue
+
             # Create binary sensor entities for boolean device attributes
             for attribute in device_data.get("attributes", []):
                 attribute_path = attribute["name"]

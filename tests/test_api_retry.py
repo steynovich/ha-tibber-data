@@ -1,7 +1,6 @@
 """Test API retry and backoff mechanisms."""
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
-import aiohttp
 from aiohttp import ClientError
 from custom_components.tibber_data.api.client import (
     TibberDataClient,
