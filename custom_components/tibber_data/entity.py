@@ -78,7 +78,7 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
             model=device_data.get("model", device_data.get("type", "Unknown")),
             sw_version=self._get_firmware_version(),
             suggested_area=suggested_area,
-            configuration_url="https://developer.tibber.com/",
+            configuration_url="https://data-api.tibber.com/clients/manage",
             connections=self._get_device_connections()
         )
 

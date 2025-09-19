@@ -129,7 +129,7 @@ async def _async_register_devices(
             manufacturer=device_data.get("manufacturer", "Tibber"),
             model=device_data.get("model", device_data.get("type", "Unknown")),
             suggested_area=suggested_area,
-            configuration_url="https://developer.tibber.com/",
+            configuration_url="https://data-api.tibber.com/clients/manage",
         )
 
     _LOGGER.debug("Registered %d devices", len(coordinator.data["devices"]))

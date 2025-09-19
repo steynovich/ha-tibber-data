@@ -20,6 +20,12 @@ A HACS-compatible Home Assistant integration that provides access to the Tibber 
 - **Home Assistant Integration** - Full integration with automations, scripts, and dashboards
 - **HACS Compatible** - Easy installation and updates through HACS
 
+## Prerequisites
+
+- **Tibber Account**: You need an active Tibber account with devices connected through the Tibber platform
+- **Tibber Data API Access**: Your account must have access to the Tibber Data API
+- **Home Assistant**: Running Home Assistant 2023.1 or later with HACS installed
+
 ## Installation
 
 ### 1. Install via HACS
@@ -35,12 +41,19 @@ A HACS-compatible Home Assistant integration that provides access to the Tibber 
 Before configuring the integration, you need to register an OAuth2 application with Tibber:
 
 #### Register with Tibber
-1. Go to [Tibber Developer Console](https://developer.tibber.com/)
-2. Contact Tibber support via chat or email to register your OAuth2 client
-3. Provide them with:
+1. Go to [Tibber Data API Client Management](https://data-api.tibber.com/clients/manage)
+2. Log in with your Tibber account credentials
+3. Create a new OAuth2 client application:
    - **Application name**: "Home Assistant Integration" (or similar)
    - **Redirect URI**: `https://your-home-assistant-url/auth/external/callback`
-   - **Required scopes**: `USER`, `HOME`
+   - **Required scopes**:
+     - `openid` (OpenID Connect)
+     - `profile` (Basic profile information)
+     - `email` (Email address)
+     - `offline_access` (Refresh token support)
+     - `data-api-user-read` (User data access)
+     - `data-api-homes-read` (Homes and device data access)
+4. Save your **Client ID** - you'll need this for Home Assistant
 
 #### Add Credentials to Home Assistant
 1. In Home Assistant, go to **Settings** → **Devices & Services**
@@ -146,7 +159,9 @@ automation:
 
 #### Devices not showing up
 - Make sure your devices are connected to Tibber and showing in the Tibber app
-- Check that your OAuth2 client has the correct scopes (USER, HOME)
+- Check that your OAuth2 client has the required scopes:
+  - `openid`, `profile`, `email`, `offline_access`
+  - `data-api-user-read`, `data-api-homes-read`
 - Try reloading the integration
 
 ### Debug Logging
@@ -170,7 +185,7 @@ The Tibber Data API has the following limits:
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/steynovich/ha-tibber-data/issues)
-- **Documentation**: [Tibber Data API Docs](https://developer.tibber.com/docs)
+- **Documentation**: [Tibber Data API Docs](https://data-api.tibber.com/docs/)
 - **Tibber Support**: Contact via the Tibber app or website
 
 ## Contributing

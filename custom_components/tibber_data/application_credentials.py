@@ -26,9 +26,9 @@ async def async_get_authorization_server(hass: HomeAssistant) -> AuthorizationSe
 async def async_get_description_placeholders(hass: HomeAssistant) -> Dict[str, str]:
     """Return description placeholders for OAuth2 setup."""
     return {
-        "oauth_consent_url": "https://developer.tibber.com/",
-        "more_info_url": "https://developer.tibber.com/docs/guides/calling-api",
-        "developer_console_url": "https://developer.tibber.com/",
+        "oauth_consent_url": "https://data-api.tibber.com/clients/manage",
+        "more_info_url": "https://data-api.tibber.com/docs/auth/",
+        "developer_console_url": "https://data-api.tibber.com/clients/manage",
     }
 
 
