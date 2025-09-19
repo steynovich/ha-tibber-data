@@ -63,7 +63,10 @@ Before configuring the integration, you need to register an OAuth2 application w
 2. Log in with your Tibber account credentials
 3. Create a new OAuth2 client application:
    - **Application name**: "Home Assistant Integration" (or similar)
-   - **Redirect URI**: `https://your-home-assistant-url/auth/external/callback`
+   - **Redirect URIs** (add both for compatibility):
+     - For **Home Assistant Cloud**: `https://my.home-assistant.io/redirect/oauth`
+     - For **Local installations**: `https://your-home-assistant-url/auth/external/callback`
+     - *Note: Adding both URIs ensures the integration works whether you use Home Assistant Cloud or a local installation*
    - **Required scopes**:
      - `openid` (OpenID Connect)
      - `profile` (Basic profile information)
@@ -174,14 +177,15 @@ automation:
 - **PKCE Implementation**: This integration automatically includes PKCE (Proof Key for Code Exchange) support required by Tibber
   - No manual configuration needed - PKCE parameters are added automatically
   - If you still see "invalid request" errors, the issue is likely with client registration
-- **Check Redirect URI**: Ensure your OAuth2 client is configured with the exact redirect URI:
+- **Check Redirect URIs**: Ensure your OAuth2 client is configured with the correct redirect URIs:
   - For Home Assistant Cloud: `https://my.home-assistant.io/redirect/oauth`
   - For Local Installation: `https://YOUR-HA-URL/auth/external/callback`
-  - URI must match exactly (case-sensitive)
+  - **Recommendation**: Add both URIs to your Tibber client for maximum compatibility
+  - URIs must match exactly (case-sensitive)
 - **Verify Client Registration**: At [Tibber Client Management](https://data-api.tibber.com/clients/manage):
   - **Application Type**: Public Client (no client secret)
   - **Required Scopes**: `openid`, `profile`, `email`, `offline_access`, `data-api-user-read`, `data-api-homes-read`
-  - **Redirect URI**: Must match your Home Assistant setup exactly
+  - **Redirect URIs**: Must include both cloud and local URIs for maximum compatibility
 - **Troubleshooting Steps**:
   1. Delete and recreate your Home Assistant application credential
   2. Verify the Client ID matches your Tibber registration exactly
