@@ -77,11 +77,10 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
         if home_data:
             # Use the home's display name as the area name (e.g., "My House", "Summer Cabin")
             suggested_area = home_data.get("displayName")
-            # Fallback to home ID if no display name available
+            # If no displayName, this should not happen since the API provides home names
+            # But as a safety fallback, use a generic name
             if not suggested_area:
-                home_id = device_data.get("home_id")
-                if home_id:
-                    suggested_area = f"Tibber Home {home_id[-8:]}" if len(home_id) >= 8 else f"Tibber Home {home_id}"
+                suggested_area = "Tibber Home"
 
         # Get device name using our helper logic
         device_name = self._get_device_display_name(device_data)
