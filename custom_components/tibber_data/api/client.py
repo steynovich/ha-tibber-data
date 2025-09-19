@@ -320,10 +320,6 @@ class TibberDataClient:
         else:
             raise ValueError("Request failed after all retry attempts")
 
-    async def get_user_info(self) -> Dict[str, Any]:
-        """Get authenticated user information."""
-        response = await self._make_authenticated_request("GET", "/v1/user")
-        return response.get("data", {})
 
     async def get_homes(self) -> List[Dict[str, Any]]:
         """Get list of user homes."""

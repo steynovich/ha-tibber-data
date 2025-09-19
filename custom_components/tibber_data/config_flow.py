@@ -19,7 +19,7 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
-class OAuth2FlowHandler(
+class TibberDataFlowHandler(
     config_entry_oauth2_flow.AbstractOAuth2FlowHandler, domain=DOMAIN
 ):
     """Config flow to handle Tibber Data OAuth2 authentication."""
@@ -61,21 +61,34 @@ class OAuth2FlowHandler(
         client._access_token = data["access_token"]
 
         try:
-            # Get user information to set unique_id and title
-            user_info = await client.get_user_info()
-            user_id = user_info.get("user_id", user_info.get("id", "unknown"))
+            # Get homes to validate token and create unique identifier
+            # Since there's no /v1/user endpoint, we'll use homes to identify the user
+            homes_data = await client.get_homes()
+
+            if not homes_data:
+                raise Exception("No homes found - token may be invalid")
+
+            # Create a unique identifier based on the homes (user-specific)
+            home_ids = [home.get("id", "") for home in homes_data]
+            user_id = "_".join(sorted(home_ids))[:50] if home_ids else "unknown"
 
             # Check for existing entry
             await self.async_set_unique_id(user_id)
             self._abort_if_unique_id_configured()
 
+            # Create a descriptive title
+            if len(homes_data) == 1:
+                title = f"Tibber Data - {homes_data[0].get('displayName', 'Home')}"
+            else:
+                title = f"Tibber Data - {len(homes_data)} homes"
+
             # Create the entry
             return self.async_create_entry(
-                title=user_info.get("name", f"Tibber User {user_id}"),
+                title=title,
                 data={
                     **data,
                     "user_id": user_id,
-                    "user_email": user_info.get("email"),
+                    "homes_count": len(homes_data),
                 },
             )
 
@@ -131,28 +144,4 @@ async def async_get_config_flow_impl(
     auth_implementation: AuthImplementation,
 ) -> config_entry_oauth2_flow.AbstractOAuth2FlowHandler:
     """Return a Tibber Data OAuth2 flow handler."""
-    return OAuth2FlowHandler()
-
-
-# For backwards compatibility and manual setup
-class TibberDataFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle manual configuration flow for Tibber Data."""
-
-    VERSION = 1
-
-    async def async_step_user(
-        self, user_input: Optional[Dict[str, Any]] = None
-    ) -> ConfigFlowResult:
-        """Handle the initial step."""
-        # Start OAuth2 flow - parent class will handle implementation selection
-        return await super().async_step_user(user_input)
-
-    async def async_step_pick_implementation(
-        self, user_input: Optional[Dict[str, Any]] = None
-    ) -> ConfigFlowResult:
-        """Handle picking OAuth2 implementation."""
-        # The parent OAuth2 flow handler will handle this automatically
-        return self.async_create_entry(
-            title="Tibber Data",
-            data={"auth_implementation": DOMAIN},
-        )
+    return TibberDataFlowHandler()
