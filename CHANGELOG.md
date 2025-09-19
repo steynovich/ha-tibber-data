@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.0.3] - 2025-01-20
+
+### Documentation
+- Enhanced README with comprehensive OAuth2 setup instructions
+- Added both Home Assistant Cloud and local installation redirect URIs to setup guide
+- Improved troubleshooting section with clearer redirect URI guidance
+- Added compatibility notes explaining benefits of including both redirect URIs
+
+### Changed
+- OAuth2 setup instructions now recommend adding both redirect URIs for maximum compatibility:
+  - Home Assistant Cloud: `https://my.home-assistant.io/redirect/oauth`
+  - Local installations: `https://your-home-assistant-url/auth/external/callback`
+
 ## [1.0.2] - 2025-01-20
 
 ### Fixed
