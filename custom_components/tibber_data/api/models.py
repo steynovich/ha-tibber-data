@@ -143,8 +143,9 @@ class TibberHome:
     @classmethod
     def from_api_data(cls, data: Dict[str, Any]) -> Self:
         """Create TibberHome from API response data."""
-        # The actual API response has 'name' directly on the home object
-        display_name = data.get("name", f"Tibber Home")
+        # According to API spec, name is in info.name
+        info = data.get("info", {})
+        display_name = info.get("name", "Tibber Home Name")
 
         return cls(
             home_id=data["id"],
