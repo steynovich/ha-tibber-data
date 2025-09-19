@@ -53,8 +53,10 @@ async def async_setup_entry(
                     )
 
     if entities:
-        async_add_entities(entities, True)
+        await async_add_entities(entities, True)
         _LOGGER.debug("Added %d binary sensor entities", len(entities))
+
+    return
 
 
 class TibberDataAttributeBinarySensor(TibberDataAttributeEntity, BinarySensorEntity):

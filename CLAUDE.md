@@ -92,4 +92,5 @@ pytest tests/test_coordinator.py # Test data coordinator
 - 001-build-a-hacs: Added HACS-compatible Tibber Data API integration with Platinum quality standards
 
 <!-- MANUAL ADDITIONS START -->
+API documentation link https://data-api.tibber.com/docs/
 <!-- MANUAL ADDITIONS END -->

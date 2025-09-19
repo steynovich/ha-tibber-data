@@ -17,6 +17,13 @@ classifiers = [
     "Topic :: Home Automation",
 ]
 keywords = ["homeassistant", "tibber", "hacs", "integration"]
+dependencies = [
+    "mypy==1.18.1",
+    "pytest==8.3.3",
+    "pytest-asyncio==0.24.0",
+    "pytest-homeassistant-custom-component==0.13.195",
+    "ruff==0.13.1",
+]
 
 [project.urls]
 Homepage = "https://github.com/user/ha-tibber-data"

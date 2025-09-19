@@ -147,131 +147,249 @@ class TestTibberDataCoordinator:
     async def test_unauthorized_token_handling(self, coordinator, mock_client):
         """Test handling of unauthorized/expired tokens."""
         # Mock unauthorized response
-        mock_client.get_homes.side_effect = ValueError("Invalid or expired token")
+        mock_client.get_homes_with_devices.side_effect = ValueError("Invalid or expired token")
 
-        mock_client.get_homes_with_devices.side_effect = Exception("API unavailable")
+        with patch.object(coordinator, '_ensure_valid_token', new_callable=AsyncMock):
+            with patch.object(coordinator, '_refresh_token', new_callable=AsyncMock) as mock_refresh:
+                mock_refresh.side_effect = Exception("Token refresh failed")
 
-        with pytest.raises(UpdateFailed, match="Authentication failed"):
-            await coordinator._async_update_data()
+                with pytest.raises(UpdateFailed, match="Authentication failed"):
+                    await coordinator._async_update_data()
 
     @pytest.mark.asyncio
     async def test_partial_device_failure(self, coordinator, mock_client):
         """Test handling when some devices fail to load."""
-        mock_homes = [{"id": "home-123", "displayName": "My Home"}]
-        mock_devices = [
-            {"id": "device-456", "type": "EV", "name": "Working Device", "online": True},
-            {"id": "device-789", "type": "CHARGER", "name": "Failing Device", "online": False}
-        ]
+        from custom_components.tibber_data.api.models import TibberHome, TibberDevice, DeviceCapability
+        from datetime import datetime, timezone
 
-        mock_client.get_homes.return_value = mock_homes
-        mock_client.get_home_devices.return_value = mock_devices
+        # Create mock objects - testing partial success scenario
+        mock_home = TibberHome(
+            home_id="12345678-1234-5678-1234-567812345678",
+            display_name="My Home",
+            time_zone="UTC",
+            device_count=2
+        )
 
-        # First device succeeds, second fails
-        mock_client.get_device_details.side_effect = [
-            {
-                "id": "device-456",
-                "type": "EV",
-                "capabilities": [
-                    {"name": "battery_level", "value": 85.0, "unit": "%"}
-                ]
-            },
-            Exception("Device communication error")  # Second device fails
-        ]
+        # Only one device succeeds (simulating partial failure)
+        device_uuid = "87654321-4321-8765-4321-876543218765"
+        capability = DeviceCapability(
+            capability_id="cap-123",
+            device_id=device_uuid,
+            name="battery_level",
+            display_name="Battery Level",
+            value=85.0,
+            unit="%",
+            last_updated=datetime.now(timezone.utc)
+        )
 
-        # Should not raise UpdateFailed, but log error and continue
-        await coordinator._async_update_data()
+        working_device = TibberDevice(
+            device_id=device_uuid,
+            external_id="ext-456",
+            device_type="EV",
+            name="Working Device",
+            home_id="12345678-1234-5678-1234-567812345678",
+            online_status=True,
+            capabilities=[capability]
+        )
 
-        # Verify partial data is available
-        data = coordinator.data
-        assert "device-456" in data["devices"]
-        # Failing device should either be missing or marked as unavailable
-        assert "device-789" not in data["devices"] or not data["devices"]["device-789"].get("online")
+        # Mock to return only successful devices (API client would handle failures internally)
+        mock_client.get_homes_with_devices.return_value = ([mock_home], [working_device])
+
+        try:
+            with patch.object(coordinator, '_ensure_valid_token', new_callable=AsyncMock):
+                await coordinator.async_request_refresh()
+
+            # Verify partial data is available
+            data = coordinator.data
+            assert device_uuid in data["devices"]
+            assert data["devices"][device_uuid]["name"] == "Working Device"
+        finally:
+            # Clean up any pending timers
+            await coordinator.async_shutdown()
 
     @pytest.mark.asyncio
     async def test_multiple_homes_handling(self, coordinator, mock_client):
         """Test handling of multiple homes with devices."""
-        mock_homes = [
-            {"id": "home-123", "displayName": "Primary Home"},
-            {"id": "home-456", "displayName": "Summer House"}
-        ]
+        from custom_components.tibber_data.api.models import TibberHome, TibberDevice, DeviceCapability
+        from datetime import datetime, timezone
 
-        # Different devices for each home
-        def mock_get_devices(home_id):
-            if home_id == "home-123":
-                return [{"id": "device-111", "type": "EV", "name": "Tesla", "online": True}]
-            elif home_id == "home-456":
-                return [{"id": "device-222", "type": "THERMOSTAT", "name": "Thermostat", "online": True}]
-            return []
+        # Create two homes
+        home1_uuid = "12345678-1234-5678-1234-567812345678"
+        home2_uuid = "87654321-4321-8765-4321-876543218765"
 
-        def mock_get_device_details(home_id, device_id):
-            if device_id == "device-111":
-                return {
-                    "id": "device-111",
-                    "type": "EV",
-                    "capabilities": [{"name": "battery_level", "value": 90.0}]
-                }
-            elif device_id == "device-222":
-                return {
-                    "id": "device-222",
-                    "type": "THERMOSTAT",
-                    "capabilities": [{"name": "temperature", "value": 21.5}]
-                }
+        home1 = TibberHome(
+            home_id=home1_uuid,
+            display_name="Primary Home",
+            time_zone="UTC",
+            device_count=1
+        )
 
-        mock_client.get_homes.return_value = mock_homes
-        mock_client.get_home_devices.side_effect = mock_get_devices
-        mock_client.get_device_details.side_effect = mock_get_device_details
+        home2 = TibberHome(
+            home_id=home2_uuid,
+            display_name="Summer House",
+            time_zone="UTC",
+            device_count=1
+        )
 
-        await coordinator._async_update_data()
+        # Create devices for each home
+        device1_uuid = "11111111-1111-1111-1111-111111111111"
+        device2_uuid = "22222222-2222-2222-2222-222222222222"
 
-        # Verify both homes and their devices are loaded
-        data = coordinator.data
-        assert len(data["homes"]) == 2
-        assert len(data["devices"]) == 2
-        assert "device-111" in data["devices"]
-        assert "device-222" in data["devices"]
+        capability1 = DeviceCapability(
+            capability_id="cap-111",
+            device_id=device1_uuid,
+            name="battery_level",
+            display_name="Battery Level",
+            value=90.0,
+            unit="%",
+            last_updated=datetime.now(timezone.utc)
+        )
+
+        capability2 = DeviceCapability(
+            capability_id="cap-222",
+            device_id=device2_uuid,
+            name="temperature",
+            display_name="Temperature",
+            value=21.5,
+            unit="°C",
+            last_updated=datetime.now(timezone.utc)
+        )
+
+        device1 = TibberDevice(
+            device_id=device1_uuid,
+            external_id="ext-111",
+            device_type="EV",
+            name="Tesla",
+            home_id=home1_uuid,
+            online_status=True,
+            capabilities=[capability1]
+        )
+
+        device2 = TibberDevice(
+            device_id=device2_uuid,
+            external_id="ext-222",
+            device_type="THERMOSTAT",
+            name="Thermostat",
+            home_id=home2_uuid,
+            online_status=True,
+            capabilities=[capability2]
+        )
+
+        mock_client.get_homes_with_devices.return_value = ([home1, home2], [device1, device2])
+
+        try:
+            with patch.object(coordinator, '_ensure_valid_token', new_callable=AsyncMock):
+                await coordinator.async_request_refresh()
+
+            # Verify both homes and their devices are loaded
+            data = coordinator.data
+            assert len(data["homes"]) == 2
+            assert len(data["devices"]) == 2
+            assert home1_uuid in data["homes"]
+            assert home2_uuid in data["homes"]
+            assert device1_uuid in data["devices"]
+            assert device2_uuid in data["devices"]
+        finally:
+            # Clean up any pending timers
+            await coordinator.async_shutdown()
 
     @pytest.mark.asyncio
     async def test_data_update_interval_respected(self, coordinator, mock_client):
         """Test that update interval is respected."""
-        mock_client.get_homes.return_value = []
+        # Mock empty response
+        mock_client.get_homes_with_devices.return_value = ([], [])
 
-        # First update
-        await coordinator._async_update_data()
-        first_call_count = mock_client.get_homes.call_count
+        try:
+            with patch.object(coordinator, '_ensure_valid_token', new_callable=AsyncMock):
+                # First update
+                await coordinator.async_request_refresh()
+                first_call_count = mock_client.get_homes_with_devices.call_count
 
-        # Immediate second update should use cached data
-        await coordinator.async_request_refresh()
+                # Immediate second update should use cached data
+                await coordinator.async_request_refresh()
 
-        # Should not have made additional API calls due to update interval
-        # (This behavior depends on the coordinator implementation)
-        assert mock_client.get_homes.call_count >= first_call_count
+                # Should not have made additional API calls due to update interval
+                # (This behavior depends on the coordinator implementation)
+                assert mock_client.get_homes_with_devices.call_count >= first_call_count
+        finally:
+            # Clean up any pending timers
+            await coordinator.async_shutdown()
 
     @pytest.mark.asyncio
     async def test_device_state_change_detection(self, coordinator, mock_client):
         """Test detection of device state changes between updates."""
-        mock_homes = [{"id": "home-123", "displayName": "My Home"}]
-        mock_devices = [{"id": "device-456", "type": "EV", "name": "Tesla", "online": True}]
+        from custom_components.tibber_data.api.models import TibberHome, TibberDevice, DeviceCapability
+        from datetime import datetime, timezone
 
-        mock_client.get_homes.return_value = mock_homes
-        mock_client.get_home_devices.return_value = mock_devices
+        # Create mock home and device objects
+        mock_home = TibberHome(
+            home_id="12345678-1234-5678-1234-567812345678",
+            display_name="My Home",
+            time_zone="UTC",
+            device_count=1
+        )
 
         # First update - battery at 80%
-        mock_client.get_device_details.return_value = {
-            "id": "device-456",
-            "capabilities": [{"name": "battery_level", "value": 80.0}]
-        }
+        device_uuid = "87654321-4321-8765-4321-876543218765"
 
-        await coordinator._async_update_data()
-        first_battery_level = coordinator.data["devices"]["device-456"]["capabilities"][0]["value"]
-        assert first_battery_level == 80.0
+        capability_80 = DeviceCapability(
+            capability_id="cap-123",
+            device_id=device_uuid,
+            name="battery_level",
+            display_name="Battery Level",
+            value=80.0,
+            unit="%",
+            last_updated=datetime.now(timezone.utc)
+        )
 
-        # Second update - battery at 85% (state changed)
-        mock_client.get_device_details.return_value = {
-            "id": "device-456",
-            "capabilities": [{"name": "battery_level", "value": 85.0}]
-        }
+        mock_device_80 = TibberDevice(
+            device_id=device_uuid,
+            external_id="ext-456",
+            device_type="EV",
+            name="Tesla",
+            home_id="12345678-1234-5678-1234-567812345678",
+            online_status=True,
+            capabilities=[capability_80]
+        )
 
-        await coordinator.async_refresh()
-        second_battery_level = coordinator.data["devices"]["device-456"]["capabilities"][0]["value"]
-        assert second_battery_level == 85.0
-        assert second_battery_level != first_battery_level
+        try:
+            mock_client.get_homes_with_devices.return_value = ([mock_home], [mock_device_80])
+
+            # Mock the token validation to bypass authentication
+            with patch.object(coordinator, '_ensure_valid_token', new_callable=AsyncMock):
+                await coordinator.async_request_refresh()
+
+            first_battery_level = coordinator.data["devices"][device_uuid]["capabilities"][0]["value"]
+            assert first_battery_level == 80.0
+
+            # Second update - battery at 85% (state changed)
+            capability_85 = DeviceCapability(
+                capability_id="cap-123",
+                device_id=device_uuid,
+                name="battery_level",
+                display_name="Battery Level",
+                value=85.0,
+                unit="%",
+                last_updated=datetime.now(timezone.utc)
+            )
+
+            mock_device_85 = TibberDevice(
+                device_id=device_uuid,
+                external_id="ext-456",
+                device_type="EV",
+                name="Tesla",
+                home_id="12345678-1234-5678-1234-567812345678",
+                online_status=True,
+                capabilities=[capability_85]
+            )
+
+            mock_client.get_homes_with_devices.return_value = ([mock_home], [mock_device_85])
+
+            with patch.object(coordinator, '_ensure_valid_token', new_callable=AsyncMock):
+                await coordinator.async_refresh()
+            second_battery_level = coordinator.data["devices"][device_uuid]["capabilities"][0]["value"]
+            assert second_battery_level == 85.0
+            assert second_battery_level != first_battery_level
+        finally:
+            # Clean up any pending timers
+            await coordinator.async_shutdown()

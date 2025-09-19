@@ -120,7 +120,7 @@ class TestTibberDataSensor:
         assert sensor.unique_id == "tibber_data_device-123_battery_level"
         assert sensor.native_value == 85.0
         assert sensor.native_unit_of_measurement == "%"
-        assert sensor.device_class is None  # Will be inferred from unit
+        assert sensor.device_class == "battery"  # Inferred from % unit
 
         # Test device info
         device_info = sensor.device_info
@@ -252,7 +252,8 @@ class TestTibberDataSensor:
             domain="sensor",
             platform=DOMAIN,
             unique_id=sensor.unique_id,
-            config_entry=None
+            config_entry=None,
+            original_name=sensor.name
         )
 
         assert entity_entry.unique_id == "tibber_data_device-123_battery_level"
