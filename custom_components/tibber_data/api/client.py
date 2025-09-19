@@ -1,7 +1,9 @@
 """Tibber Data API client with OAuth2 authentication."""
 from __future__ import annotations
 
+import asyncio
 import hashlib
+import random
 import secrets
 import urllib.parse
 from datetime import datetime
@@ -10,6 +12,20 @@ from typing import Any, Dict, List, Optional
 import aiohttp
 
 from .models import OAuthSession, TibberHome, TibberDevice
+
+
+# Retry configuration according to Tibber API specs
+RETRY_MAX_ATTEMPTS = 5
+RETRY_INITIAL_DELAY = 0.4  # 400 milliseconds
+RETRY_BACKOFF_FACTOR = 2
+RETRY_MAX_DELAY = 15.0  # 15 seconds
+RETRY_JITTER_MAX = 0.25  # 250 milliseconds for Retry-After jitter
+
+# HTTP status codes that should trigger retries (transient errors)
+RETRY_STATUS_CODES = {429, 500, 502, 503}
+
+# HTTP status codes that should NOT be retried (permanent errors)
+NO_RETRY_STATUS_CODES = {400, 401, 403, 404}
 
 
 class TibberDataClient:
@@ -199,6 +215,24 @@ class TibberDataClient:
 
     # API Methods
 
+    def _calculate_retry_delay(self, attempt: int, retry_after: Optional[str] = None) -> float:
+        """Calculate retry delay with exponential backoff and full jitter."""
+        if retry_after:
+            try:
+                # Use Retry-After header value + small random jitter (0-250ms)
+                base_delay = float(retry_after)
+                jitter = random.uniform(0, RETRY_JITTER_MAX)
+                return base_delay + jitter
+            except (ValueError, TypeError):
+                pass  # Fall back to exponential backoff
+
+        # Exponential backoff with full jitter
+        exponential_delay = RETRY_INITIAL_DELAY * (RETRY_BACKOFF_FACTOR ** attempt)
+        max_delay = min(exponential_delay, RETRY_MAX_DELAY)
+
+        # Full jitter: random value between 0 and max_delay
+        return random.uniform(0, max_delay)
+
     async def _make_authenticated_request(
         self,
         method: str,
@@ -206,7 +240,7 @@ class TibberDataClient:
         params: Optional[Dict[str, Any]] = None,
         data: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """Make authenticated request to API."""
+        """Make authenticated request to API with retry logic."""
         if not self._access_token:
             raise ValueError("No access token available")
 
@@ -216,29 +250,75 @@ class TibberDataClient:
             "Content-Type": "application/json"
         }
 
-        async with self.session.request(
-            method, url, headers=headers, params=params, json=data
-        ) as response:
-            response_data = await response.json()
+        last_exception = None
 
-            if response.status == 401:
-                raise ValueError("Invalid or expired token")
-            elif response.status == 403:
-                raise ValueError("Insufficient permissions")
-            elif response.status == 404:
-                error_msg = response_data.get("message", "Not found")
-                if "home" in error_msg.lower():
-                    raise ValueError("Home not found")
-                elif "device" in error_msg.lower():
-                    raise ValueError("Device not found")
-                raise ValueError(error_msg)
-            elif response.status == 429:
-                raise ValueError("Rate limit exceeded")
-            elif response.status != 200:
-                error_msg = response_data.get("message", f"HTTP {response.status}")
-                raise ValueError(f"API request failed: {error_msg}")
+        for attempt in range(RETRY_MAX_ATTEMPTS):
+            try:
+                async with self.session.request(
+                    method, url, headers=headers, params=params, json=data
+                ) as response:
+                    # Handle successful responses
+                    if response.status == 200:
+                        response_data = await response.json()
+                        return response_data
 
-            return response_data
+                    # Handle permanent errors (do not retry)
+                    if response.status in NO_RETRY_STATUS_CODES:
+                        response_data = await response.json()
+
+                        if response.status == 401:
+                            raise ValueError("Invalid or expired token")
+                        elif response.status == 403:
+                            raise ValueError("Insufficient permissions")
+                        elif response.status == 404:
+                            error_msg = response_data.get("message", "Not found")
+                            if "home" in error_msg.lower():
+                                raise ValueError("Home not found")
+                            elif "device" in error_msg.lower():
+                                raise ValueError("Device not found")
+                            raise ValueError(error_msg)
+                        else:  # 400
+                            error_msg = response_data.get("message", "Bad request")
+                            raise ValueError(f"Invalid request: {error_msg}")
+
+                    # Handle transient errors (retry eligible)
+                    if response.status in RETRY_STATUS_CODES:
+                        response_data = await response.json()
+
+                        # Get retry delay
+                        retry_after = response.headers.get("Retry-After")
+                        delay = self._calculate_retry_delay(attempt, retry_after)
+
+                        # Create appropriate exception
+                        if response.status == 429:
+                            last_exception = ValueError("Rate limit exceeded")
+                        else:  # 500, 502, 503
+                            error_msg = response_data.get("message", f"Server error (HTTP {response.status})")
+                            last_exception = ValueError(f"Transient server error: {error_msg}")
+
+                        # Don't delay on the last attempt
+                        if attempt < RETRY_MAX_ATTEMPTS - 1:
+                            await asyncio.sleep(delay)
+                        continue
+
+                    # Handle other status codes
+                    response_data = await response.json()
+                    error_msg = response_data.get("message", f"HTTP {response.status}")
+                    raise ValueError(f"API request failed: {error_msg}")
+
+            except aiohttp.ClientError as exc:
+                # Network errors are retryable
+                last_exception = ValueError(f"Network error: {exc}")
+                if attempt < RETRY_MAX_ATTEMPTS - 1:
+                    delay = self._calculate_retry_delay(attempt)
+                    await asyncio.sleep(delay)
+                continue
+
+        # If we get here, all retries have been exhausted
+        if last_exception:
+            raise last_exception
+        else:
+            raise ValueError("Request failed after all retry attempts")
 
     async def get_user_info(self) -> Dict[str, Any]:
         """Get authenticated user information."""

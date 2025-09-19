@@ -21,6 +21,13 @@ API_TIMEOUT: Final = 30  # seconds
 API_RATE_LIMIT: Final = 100  # requests per 5 minutes
 API_RATE_LIMIT_WINDOW: Final = 300  # 5 minutes in seconds
 
+# Retry configuration (according to Tibber API specs)
+API_RETRY_MAX_ATTEMPTS: Final = 5
+API_RETRY_INITIAL_DELAY: Final = 0.4  # 400 milliseconds
+API_RETRY_BACKOFF_FACTOR: Final = 2
+API_RETRY_MAX_DELAY: Final = 15.0  # 15 seconds
+API_RETRY_JITTER_MAX: Final = 0.25  # 250 milliseconds for Retry-After jitter
+
 # Update intervals
 DEFAULT_UPDATE_INTERVAL: Final = timedelta(seconds=60)
 MIN_UPDATE_INTERVAL: Final = timedelta(seconds=30)
