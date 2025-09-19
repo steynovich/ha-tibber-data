@@ -145,7 +145,17 @@ class TibberHome:
         """Create TibberHome from API response data."""
         # According to API spec, name is in info.name
         info = data.get("info", {})
-        display_name = info.get("name", "Tibber Home Name")
+        display_name = info.get("name")
+
+        # If no name available, create a fallback using home ID
+        if not display_name:
+            home_id = data.get("id", "")
+            if home_id:
+                # Use last 8 characters of ID for readability
+                short_id = home_id[-8:] if len(home_id) >= 8 else home_id
+                display_name = f"Tibber Home {short_id}"
+            else:
+                display_name = "Tibber Home"
 
         return cls(
             home_id=data["id"],

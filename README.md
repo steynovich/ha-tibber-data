@@ -16,9 +16,10 @@ A HACS-compatible Home Assistant integration that provides access to the Tibber 
 - **Automatic Device Discovery** - Discovers all devices connected to your Tibber account
 - **Real-time Monitoring** - Updates device states every 60 seconds
 - **OAuth2 Authentication** - Secure authentication using Home Assistant's application credentials
-- **Device Organization** - Groups devices by Tibber homes for easy management
+- **Device Organization** - Groups devices by Tibber homes with proper naming from API
 - **Home Assistant Integration** - Full integration with automations, scripts, and dashboards
 - **HACS Compatible** - Easy installation and updates through HACS
+- **API Compliant** - Follows official Tibber Data API specification for reliable operation
 
 ## Prerequisites
 

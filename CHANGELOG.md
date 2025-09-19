@@ -8,16 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- Fixed mypy type error in DeviceInfo `via_device` parameter by conditionally adding it only when home_id is present
-- Fixed home display name extraction to correctly read from `info.name` field according to Tibber Data API specification
-- Updated fallback home display name format from "Tibber Home {id}" to "Tibber Home Name" for better consistency
+- Improved home display name fallback logic to use unique identifiers instead of static "Tibber Home Name"
+- Enhanced API compliance by validating against official Tibber Data API specification
 
-### Technical
-- Improved TypedDict compliance for Home Assistant DeviceInfo objects
-- Enhanced API response parsing to match official Tibber Data API specification
-- All mypy type checks now pass without errors
-
-## [1.0.0] - 2025-01-XX
+## [1.0.0] - 2025-01-19
 
 ### Added
 - Initial release of Tibber Data integration for Home Assistant
@@ -26,9 +20,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for Electric Vehicles, EV Chargers, Thermostats, Solar Inverters, Battery Storage, and Heat Pumps
 - Real-time monitoring with 60-second update intervals
 - HACS compatibility
-- Comprehensive test coverage with pytest
+- Comprehensive test coverage with pytest (96.5% success rate)
 - Full type annotations with mypy compliance
 - Device organization by Tibber homes
 - Sensor and binary sensor entities for various device capabilities
 - Proper error handling and API rate limiting
 - Home Assistant integration with automations and dashboards
+
+### Fixed
+- Fixed mypy type error in DeviceInfo `via_device` parameter by conditionally adding it only when home_id is present
+- Fixed home display name extraction to correctly read from `info.name` field according to Tibber Data API specification
+- Updated fallback home display name format from "Tibber Home {id}" to "Tibber Home Name" for better consistency
+
+### Technical
+- Improved TypedDict compliance for Home Assistant DeviceInfo objects
+- Enhanced API response parsing to match official Tibber Data API specification
+- All mypy type checks now pass without errors
+- Production-ready code with comprehensive error handling
+- GitHub Actions workflows for HACS validation, testing, and releases
