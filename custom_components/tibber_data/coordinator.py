@@ -101,6 +101,9 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
     async def _async_update_data(self) -> Dict[str, Any]:
         """Fetch data from API endpoint."""
         try:
+            # Ensure we have a valid access token before making API calls
+            await self._ensure_valid_token()
+
             # Fetch homes and devices
             homes_data, devices_data = await self.client.get_homes_with_devices()
 
@@ -172,8 +175,8 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
 
         except Exception as err:
             # Log specific error types for better debugging
-            if "Invalid or expired token" in str(err):
-                _LOGGER.error("Authentication failed - token may be expired")
+            if "401" in str(err) or "Invalid or expired token" in str(err) or "Unauthorized" in str(err):
+                _LOGGER.error("Authentication failed - token may be expired: %s", err)
                 # Try to refresh token one more time
                 try:
                     await self._refresh_token()
@@ -214,9 +217,18 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             # Handle client_id from different OAuth2 formats
             client_id = self.config_entry.data.get("client_id") or self.config_entry.data.get(CONF_CLIENT_ID)
             if not client_id:
-                # For Home Assistant OAuth2, we might not have direct access to client_id
-                # In this case, we should trigger a reauth flow instead
-                raise UpdateFailed("Cannot refresh token - client ID not available")
+                # For Home Assistant OAuth2, we don't have direct access to client_id
+                # In this case, we should trigger a reauth flow
+                _LOGGER.warning("Cannot refresh token - client ID not available, triggering reauth")
+                self.hass.async_create_task(
+                    self.hass.config_entries.flow.async_init(
+                        DOMAIN,
+                        context={"source": "reauth", "entry_id": self.config_entry.entry_id},
+                        data=self.config_entry.data,
+                    )
+                )
+                raise UpdateFailed("Authentication expired - please reauthorize in integrations")
+
             refresh_response = await self.client.refresh_access_token(
                 client_id=client_id,
                 refresh_token=self._oauth_session.refresh_token
