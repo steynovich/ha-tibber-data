@@ -225,6 +225,10 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             raise UpdateFailed("No OAuth session available")
 
         try:
+            # Debug: Log config entry data structure (without sensitive data)
+            config_keys = list(self.config_entry.data.keys())
+            _LOGGER.debug("Config entry data keys: %s", config_keys)
+
             # Get client_id from Home Assistant OAuth2 implementation
             client_id = None
             try:
@@ -234,14 +238,29 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 implementation = await config_entry_oauth2_flow.async_get_config_entry_implementation(
                     self.hass, self.config_entry
                 )
-                if implementation and hasattr(implementation, 'client_id'):
-                    client_id = getattr(implementation, 'client_id', None)
+                _LOGGER.debug("OAuth2 implementation type: %s", type(implementation).__name__ if implementation else "None")
+                if implementation:
+                    # List all attributes of the implementation for debugging
+                    impl_attrs = [attr for attr in dir(implementation) if not attr.startswith('_')]
+                    _LOGGER.debug("OAuth2 implementation attributes: %s", impl_attrs)
+
+                    if hasattr(implementation, 'client_id'):
+                        client_id = getattr(implementation, 'client_id', None)
+                        _LOGGER.debug("Retrieved client_id from OAuth2 implementation: %s",
+                                     client_id[:10] + "..." if client_id and len(client_id) > 10 else client_id)
+                    else:
+                        _LOGGER.warning("OAuth2 implementation has no client_id attribute")
+                else:
+                    _LOGGER.warning("No OAuth2 implementation found for config entry")
             except Exception as impl_err:
-                _LOGGER.debug("Could not get client_id from OAuth2 implementation: %s", impl_err)
+                _LOGGER.error("Could not get client_id from OAuth2 implementation: %s", impl_err)
+
+            # Log final client_id status
+            _LOGGER.debug("Final client_id obtained: %s", "Yes" if client_id else "No")
 
             if not client_id:
                 # As a last resort, trigger a reauth flow
-                _LOGGER.warning("Cannot refresh token - client ID not available, triggering reauth")
+                _LOGGER.warning("Cannot refresh token - client ID not available from any source, triggering reauth")
                 self.hass.async_create_task(
                     self.hass.config_entries.flow.async_init(
                         DOMAIN,
