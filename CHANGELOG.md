@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2025-01-20
+
+### Fixed
+- **CRITICAL FIX**: Resolved `invalid_client` OAuth2 error by properly implementing application credentials system
+- Fixed token refresh mechanism to correctly retrieve client credentials from Home Assistant's OAuth2 implementation
+- Enhanced OAuth2 client credential retrieval with comprehensive debugging and error reporting
+- Improved support for both PKCE (public) and confidential OAuth2 client types
+- Token refresh now fully compliant with Tibber Data API OAuth2 specifications
+
+### Technical
+- Implemented proper `config_entry_oauth2_flow.async_get_config_entry_implementation()` usage
+- Added support for `client_secret` parameter in token refresh for confidential clients
+- Enhanced debug logging to show OAuth2 implementation type and credential retrieval status
+- Comprehensive error reporting with specific OAuth2 error codes and descriptions
+- Verified full compliance with Tibber's OAuth2 token refresh requirements
+
+### Security
+- Properly handles both PKCE (recommended) and confidential client authentication flows
+- Correctly omits `client_secret` for PKCE flows as per Tibber API specification
+- Secure credential management through Home Assistant's application credentials system
+
 ## [1.0.5] - 2025-01-20
 
 ### Fixed
