@@ -185,7 +185,8 @@ class TibberDataClient:
     async def refresh_access_token(
         self,
         client_id: str,
-        refresh_token: str
+        refresh_token: str,
+        client_secret: Optional[str] = None
     ) -> Dict[str, Any]:
         """Refresh expired access token using refresh token.
 
@@ -202,11 +203,20 @@ class TibberDataClient:
             "client_id": client_id
         }
 
+        # Add client_secret if provided (required by some OAuth2 implementations)
+        if client_secret:
+            data["client_secret"] = client_secret
+
         url = "https://thewall.tibber.com/connect/token"
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
         async with self.session.post(url, data=data, headers=headers) as response:
-            response_data: Dict[str, Any] = await response.json()
+            try:
+                response_data: Dict[str, Any] = await response.json()
+            except Exception:
+                # If JSON parsing fails, get the raw text for debugging
+                response_text = await response.text()
+                raise ValueError(f"Token refresh failed: HTTP {response.status}, Response: {response_text}")
 
             if response.status == 401:
                 error_desc = response_data.get("error_description", "Invalid refresh token")
@@ -216,7 +226,9 @@ class TibberDataClient:
 
             if response.status == 400:
                 error_desc = response_data.get("error_description", "Bad request")
-                raise ValueError(f"Token refresh failed: {error_desc}")
+                error_code = response_data.get("error", "")
+                # Log detailed error information for debugging
+                raise ValueError(f"Token refresh failed: {error_desc} (error: {error_code})")
 
             if response.status != 200:
                 raise ValueError(f"Token refresh failed: HTTP {response.status}")
@@ -473,6 +485,6 @@ class TibberDataClient:
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:  # noqa: ARG002
         """Async context manager exit."""
         await self.close()

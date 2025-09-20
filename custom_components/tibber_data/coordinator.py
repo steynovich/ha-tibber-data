@@ -251,6 +251,11 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 )
                 raise UpdateFailed("Authentication expired - please reauthorize in integrations")
 
+            _LOGGER.debug("Attempting token refresh with client_id: %s, refresh_token length: %d",
+                         client_id[:10] + "..." if len(client_id) > 10 else client_id,
+                         len(self._oauth_session.refresh_token))
+
+            # For PKCE flows, we don't need client_secret
             refresh_response = await self.client.refresh_access_token(
                 client_id=client_id,
                 refresh_token=self._oauth_session.refresh_token
