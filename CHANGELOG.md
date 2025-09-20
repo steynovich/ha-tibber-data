@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2025-01-20
+
+### Fixed
+- Fixed token refresh mechanism for Home Assistant OAuth2 application credentials system
+- OAuth2 client ID is now properly retrieved from Home Assistant's OAuth2 implementation instead of config entry data
+- Resolved "Cannot refresh token - client ID not available" authentication errors that required manual reauthorization
+
+### Technical
+- Updated token refresh logic in coordinator to use `config_entry_oauth2_flow.async_get_config_entry_implementation()`
+- Removed deprecated client ID retrieval from config entry data
+- Cleaned up unused imports and improved error handling for OAuth2 operations
+
 ## [1.0.3] - 2025-01-20
 
 ### Documentation
