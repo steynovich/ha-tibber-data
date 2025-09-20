@@ -18,7 +18,6 @@ from .const import (
     DATA_DEVICES,
     TOKEN_REFRESH_THRESHOLD,
     DEFAULT_UPDATE_INTERVAL,
-    CONF_CLIENT_ID,
     CONF_ACCESS_TOKEN,
     CONF_REFRESH_TOKEN,
     CONF_EXPIRES_AT
@@ -226,11 +225,22 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             raise UpdateFailed("No OAuth session available")
 
         try:
-            # Handle client_id from different OAuth2 formats
-            client_id = self.config_entry.data.get("client_id") or self.config_entry.data.get(CONF_CLIENT_ID)
+            # Get client_id from Home Assistant OAuth2 implementation
+            client_id = None
+            try:
+                from homeassistant.helpers import config_entry_oauth2_flow
+
+                # Get OAuth2 implementation from the config entry
+                implementation = await config_entry_oauth2_flow.async_get_config_entry_implementation(
+                    self.hass, self.config_entry
+                )
+                if implementation and hasattr(implementation, 'client_id'):
+                    client_id = getattr(implementation, 'client_id', None)
+            except Exception as impl_err:
+                _LOGGER.debug("Could not get client_id from OAuth2 implementation: %s", impl_err)
+
             if not client_id:
-                # For Home Assistant OAuth2, we don't have direct access to client_id
-                # In this case, we should trigger a reauth flow
+                # As a last resort, trigger a reauth flow
                 _LOGGER.warning("Cannot refresh token - client ID not available, triggering reauth")
                 self.hass.async_create_task(
                     self.hass.config_entries.flow.async_init(
