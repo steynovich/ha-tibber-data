@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2025-01-20
+
+### Fixed
+- Enhanced OAuth2 token refresh error handling with detailed error reporting
+- Improved error messages now include specific OAuth2 error codes and descriptions from Tibber API
+- Fixed JSON parsing errors in token refresh responses with fallback to raw response text
+- Better debugging capabilities for troubleshooting token refresh failures
+
+### Technical
+- Added comprehensive debug logging for client ID retrieval and token refresh parameters
+- Improved error visibility by capturing both `error` and `error_description` fields from OAuth2 responses
+- Removed unnecessary client_secret handling for PKCE flows per Tibber documentation
+- Fixed unused parameter warnings in async context manager methods
+- Enhanced token refresh diagnostics to help identify authentication issues
+
 ## [1.0.4] - 2025-01-20
 
 ### Fixed
