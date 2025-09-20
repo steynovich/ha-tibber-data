@@ -225,38 +225,31 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             raise UpdateFailed("No OAuth session available")
 
         try:
-            # Debug: Log config entry data structure (without sensitive data)
-            config_keys = list(self.config_entry.data.keys())
-            _LOGGER.debug("Config entry data keys: %s", config_keys)
+            # Use application credentials system for token refresh
+            from homeassistant.helpers import config_entry_oauth2_flow
 
-            # Get client_id from Home Assistant OAuth2 implementation
             client_id = None
-            try:
-                from homeassistant.helpers import config_entry_oauth2_flow
+            client_secret = None
 
-                # Get OAuth2 implementation from the config entry
+            try:
+                # Get the OAuth2 implementation that was used for this config entry
                 implementation = await config_entry_oauth2_flow.async_get_config_entry_implementation(
                     self.hass, self.config_entry
                 )
-                _LOGGER.debug("OAuth2 implementation type: %s", type(implementation).__name__ if implementation else "None")
+
                 if implementation:
-                    # List all attributes of the implementation for debugging
-                    impl_attrs = [attr for attr in dir(implementation) if not attr.startswith('_')]
-                    _LOGGER.debug("OAuth2 implementation attributes: %s", impl_attrs)
+                    # The implementation should have the client credentials
+                    client_id = getattr(implementation, 'client_id', None)
+                    client_secret = getattr(implementation, 'client_secret', None)
 
-                    if hasattr(implementation, 'client_id'):
-                        client_id = getattr(implementation, 'client_id', None)
-                        _LOGGER.debug("Retrieved client_id from OAuth2 implementation: %s",
-                                     client_id[:10] + "..." if client_id and len(client_id) > 10 else client_id)
-                    else:
-                        _LOGGER.warning("OAuth2 implementation has no client_id attribute")
+                    _LOGGER.debug("Retrieved OAuth2 credentials - client_id: %s, has_client_secret: %s",
+                                 client_id[:10] + "..." if client_id and len(client_id) > 10 else client_id,
+                                 "yes" if client_secret else "no")
                 else:
-                    _LOGGER.warning("No OAuth2 implementation found for config entry")
-            except Exception as impl_err:
-                _LOGGER.error("Could not get client_id from OAuth2 implementation: %s", impl_err)
+                    _LOGGER.error("No OAuth2 implementation found for config entry")
 
-            # Log final client_id status
-            _LOGGER.debug("Final client_id obtained: %s", "Yes" if client_id else "No")
+            except Exception as impl_err:
+                _LOGGER.error("Could not retrieve OAuth2 implementation: %s", impl_err)
 
             if not client_id:
                 # As a last resort, trigger a reauth flow
@@ -270,14 +263,16 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 )
                 raise UpdateFailed("Authentication expired - please reauthorize in integrations")
 
-            _LOGGER.debug("Attempting token refresh with client_id: %s, refresh_token length: %d",
-                         client_id[:10] + "..." if len(client_id) > 10 else client_id,
+            _LOGGER.debug("Attempting token refresh with client_id: %s, has_client_secret: %s, refresh_token length: %d",
+                         client_id[:10] + "..." if client_id and len(client_id) > 10 else client_id,
+                         "yes" if client_secret else "no",
                          len(self._oauth_session.refresh_token))
 
-            # For PKCE flows, we don't need client_secret
+            # Use client_secret if available (for non-PKCE flows)
             refresh_response = await self.client.refresh_access_token(
                 client_id=client_id,
-                refresh_token=self._oauth_session.refresh_token
+                refresh_token=self._oauth_session.refresh_token,
+                client_secret=client_secret
             )
 
             # Update OAuth session with new tokens

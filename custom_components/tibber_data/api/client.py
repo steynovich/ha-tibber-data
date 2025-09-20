@@ -203,7 +203,7 @@ class TibberDataClient:
             "client_id": client_id
         }
 
-        # Add client_secret if provided (required by some OAuth2 implementations)
+        # Add client_secret if provided (required for confidential clients, optional for PKCE)
         if client_secret:
             data["client_secret"] = client_secret
 
