@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2025-01-20
+
+### Fixed
+- **MISSING SENSORS**: Fixed `wifi.rssi`, `cellular.rssi`, and other diagnostic capabilities not appearing as sensors
+- Resolved issue where diagnostic capabilities were filtered out instead of being created as diagnostic sensors
+- Fixed gap in sensor creation logic that only handled diagnostic attributes but not diagnostic capabilities
+- WiFi signal strength (`wifi.rssi` in dBm) and cellular signal strength (`cellular.rssi` in dBm) now properly available
+
+### Added
+- Diagnostic sensor creation for capabilities marked as diagnostic (wifi.rssi, cellular.rssi, isOnline, etc.)
+- Enhanced `TibberDataCapabilitySensor` with `is_diagnostic` parameter for proper entity categorization
+- Diagnostic capabilities now appear in Home Assistant's diagnostic section for devices
+
+### Technical
+- Added `is_diagnostic` parameter to `TibberDataCapabilitySensor` constructor
+- Set `EntityCategory.DIAGNOSTIC` for diagnostic capability sensors
+- Fixed type annotations for attribute sensor return values
+- Improved EntityCategory import handling with type ignore annotation
+- Enhanced sensor creation logic to handle both regular and diagnostic capabilities
+
 ## [1.0.6] - 2025-01-20
 
 ### Fixed
