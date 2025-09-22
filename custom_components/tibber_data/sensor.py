@@ -97,8 +97,6 @@ def _should_be_diagnostic(capability_name: str) -> bool:
         "connectivity.wifi",
         "connectivity.cellular",
         "firmwareVersion",
-        "Firmwareversion",
-        "firmwareversion",
         "serialNumber",
         "wifi.rssi",
         "cellular.rssi"
