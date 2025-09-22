@@ -10,7 +10,7 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorStateClass
 )
-from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.entity import EntityCategory  # type: ignore[attr-defined]
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -44,9 +44,17 @@ async def async_setup_entry(
             for capability in device_data.get("capabilities", []):
                 capability_name = capability["name"]
 
-                # Skip capabilities that should be diagnostic sensors (attributes)
+                # Create diagnostic sensors for capabilities that should be diagnostic
                 if _should_be_diagnostic(capability_name):
-                    _LOGGER.debug("Skipping capability %s as it should be a diagnostic sensor", capability_name)
+                    _LOGGER.debug("Creating diagnostic sensor for capability %s", capability_name)
+                    entities.append(
+                        TibberDataCapabilitySensor(
+                            coordinator=coordinator,
+                            device_id=device_id,
+                            capability_name=capability_name,
+                            is_diagnostic=True
+                        )
+                    )
                     continue
 
                 # Check if this is a string sensor (has availableValues)
@@ -194,10 +202,12 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
         self,
         coordinator: TibberDataUpdateCoordinator,
         device_id: str,
-        capability_name: str
+        capability_name: str,
+        is_diagnostic: bool = False
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator, device_id, capability_name)
+        self._is_diagnostic = is_diagnostic
 
         # Set entity description based on capability type
         self.entity_description = self._get_entity_description(capability_name)
@@ -230,7 +240,7 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
             state_class = self._infer_state_class(capability_name, unit)
 
         # Determine if this should be a diagnostic sensor
-        entity_category = None
+        entity_category = EntityCategory.DIAGNOSTIC if self._is_diagnostic else None
         enabled_default = True
 
         # Get icon from mapping
@@ -538,7 +548,8 @@ class TibberDataAttributeSensor(TibberDataCapabilityEntity, SensorEntity):
 
         # Handle different attribute value formats
         if "value" in attribute_data:
-            return attribute_data["value"]
+            value = attribute_data["value"]
+            return cast(Union[float, int, str, None], value)
         elif "status" in attribute_data:
             status = attribute_data["status"]
             # Map API status values to more user-friendly values
@@ -549,7 +560,8 @@ class TibberDataAttributeSensor(TibberDataCapabilityEntity, SensorEntity):
                 "offline": "Offline",
                 "online": "Online"
             }
-            return status_mappings.get(status, status)
+            mapped_status = status_mappings.get(status, status)
+            return cast(Union[float, int, str, None], mapped_status)
 
         return None
 
