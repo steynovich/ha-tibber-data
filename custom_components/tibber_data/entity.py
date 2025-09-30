@@ -179,11 +179,21 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
         device_name = device_data.get("name") or ""
         device_name = device_name.strip() if device_name else ""
 
-        # If no name or empty name, use "Brand Model" format
-        if not device_name:
+        # If no name or empty name or is just whitespace or "<no name>", use "Brand Model" format
+        if not device_name or device_name == "<no name>":
             manufacturer = device_data.get("manufacturer", "Unknown")
             model = device_data.get("model", "Device")
-            device_name = f"{manufacturer} {model}"
+            # Build a cleaner device name
+            if manufacturer and manufacturer != "Unknown" and model and model != "Device":
+                device_name = f"{manufacturer} {model}"
+            elif model and model != "Device":
+                device_name = model
+            elif manufacturer and manufacturer != "Unknown":
+                device_name = manufacturer
+            else:
+                # Last resort: use device ID prefix
+                device_id = device_data.get("id", "unknown")
+                device_name = f"Device {device_id[:8]}"
 
         return device_name
 

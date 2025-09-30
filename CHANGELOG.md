@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.8] - 2025-09-30
+
 ### Fixed
+- Fixed device names showing as "<no name>" by improving fallback logic to use manufacturer and model information
 - Fixed mypy type error in DeviceInfo `via_device` parameter by conditionally adding it only when home_id is present
 - Fixed home display name extraction to correctly read from `info.name` field according to Tibber Data API specification
 - Updated fallback home display name format from "Tibber Home {id}" to "Tibber Home Name" for better consistency
 
 ### Technical
+- Enhanced device display name logic with better fallback chain: name → manufacturer + model → model → manufacturer → device ID
 - Improved TypedDict compliance for Home Assistant DeviceInfo objects
 - Enhanced API response parsing to match official Tibber Data API specification
 - All mypy type checks now pass without errors
