@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.9] - 2025-09-30
+
+### Added
+- Added entity_category support for diagnostic sensors and attributes
+- Entity IDs now include tibber_data_ prefix for better identification
+- Compound word detection for proper snake_case formatting (e.g., isonline → is_online)
+
+### Fixed
+- Fixed diagnostic sensors not being grouped properly in device view
+- Fixed "isonline" and similar connectivity attributes not being marked as diagnostic
+- Fixed device names showing as "<no name>" by improving fallback logic to use manufacturer and model information
+- Fixed entity_id generation to use human-readable device names instead of UUID hashes
+- Signal strength and other technical sensors now correctly marked as diagnostic
+- Entity display names are clean (without "Tibber" prefix) while entity_ids maintain tibber_data_ prefix
+
+### Migration Notes
+- **Entity IDs now use `tibber_data_` prefix with proper snake_case**: Format is `sensor.tibber_data_<device_slug>_<capability_snake_case>`
+  - **To migrate existing entities**: Go to Settings → Devices & Services → Tibber Data → Click on the integration → ⋮ (three dots menu) → "Recreate entities"
+  - This will recreate all entities with clean, readable entity_ids
+  - Examples:
+    - `sensor.tibber_homevolt_teg06_available_energy_stored` → `sensor.tibber_data_homevolt_teg06_storage_available_energy`
+    - `sensor.homevolt_teg06_state_of_charge` → `sensor.tibber_data_homevolt_teg06_storage_state_of_charge`
+    - `sensor.tibber_homevolt_teg06_wi_fi_signal_strength` → `sensor.tibber_data_homevolt_teg06_wifi_rssi`
+    - `binary_sensor.tibber_homevolt_teg06_isonline` → `binary_sensor.tibber_data_homevolt_teg06_is_online`
+  - ⚠️ **Important**: Automations and dashboards using old entity_ids will need to be updated after recreation
+
+### Technical
+- Implemented entity_category property for TibberDataCapabilityEntity (sensors)
+- Implemented entity_category property for TibberDataAttributeEntity (binary sensors)
+- Enhanced diagnostic detection to include: online, connected, status, update, version keywords
+- Removed name parameter from SensorEntityDescription and BinarySensorEntityDescription to avoid override
+- Added suggested_object_id property to all entities using human-readable device slugs
+- Added _get_device_slug() helper to generate clean entity_id slugs from device names
+- Added _slugify_capability_name() to convert camelCase to snake_case and handle compound words
+- Compound word patterns: isonline→is_online, isconnected→is_connected, haserror→has_error, etc.
+- Diagnostic keywords include: signal, rssi, wifi, voltage, current, firmware, version, error, etc.
+- Entity display names use device name + capability/attribute name (no platform prefix)
+- Entity IDs use tibber_data_{device_slug}_{capability} format with proper snake_case
+
 ## [1.0.8] - 2025-09-30
 
 ### Fixed

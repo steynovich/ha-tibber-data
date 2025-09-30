@@ -102,7 +102,7 @@ class TibberDataAttributeBinarySensor(TibberDataAttributeEntity, BinarySensorEnt
 
         return BinarySensorEntityDescription(
             key=attribute_path,
-            name=attribute_name,
+            name=None,  # Let the entity's name property handle the full name
             device_class=device_class,
             icon=mapping.get("icon"),
         )

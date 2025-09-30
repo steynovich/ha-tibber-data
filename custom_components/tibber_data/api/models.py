@@ -306,6 +306,19 @@ class DeviceAttribute:
         # Use current timestamp as fallback
         last_updated = datetime.now(timezone.utc)
 
+        # Determine if attribute is diagnostic
+        # Diagnostic attributes include connectivity, firmware, and status indicators
+        attribute_id_lower = attribute_id.lower()
+        is_diagnostic = (
+            attribute_id.startswith("connectivity") or
+            attribute_id.startswith("firmware") or
+            "online" in attribute_id_lower or
+            "connected" in attribute_id_lower or
+            "status" in attribute_id_lower or
+            "update" in attribute_id_lower or
+            "version" in attribute_id_lower
+        )
+
         return cls(
             attribute_id=full_attribute_id,
             device_id=device_id,
@@ -314,7 +327,7 @@ class DeviceAttribute:
             value=value,
             data_type=data_type,
             last_updated=last_updated,
-            is_diagnostic=attribute_id.startswith("connectivity") or attribute_id.startswith("firmware")
+            is_diagnostic=is_diagnostic
         )
 
     @property

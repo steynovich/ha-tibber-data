@@ -3,6 +3,7 @@ import pytest
 from unittest.mock import MagicMock
 from homeassistant.core import HomeAssistant
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+from homeassistant.helpers.entity import EntityCategory
 from custom_components.tibber_data.binary_sensor import (
     async_setup_entry,
     TibberDataAttributeBinarySensor,
@@ -32,7 +33,7 @@ class TestTibberDataBinarySensor:
                             "value": True,
                             "dataType": "boolean",
                             "lastUpdated": "2025-09-18T10:30:00Z",
-                            "isDiagnostic": False
+                            "isDiagnostic": True
                         },
                         {
                             "name": "firmware_update_available",
@@ -40,7 +41,7 @@ class TestTibberDataBinarySensor:
                             "value": False,
                             "dataType": "boolean",
                             "lastUpdated": "2025-08-15T14:20:00Z",
-                            "isDiagnostic": False
+                            "isDiagnostic": True
                         },
                         {
                             "name": "signal_strength",
@@ -73,7 +74,7 @@ class TestTibberDataBinarySensor:
                             "value": False,
                             "dataType": "boolean",
                             "lastUpdated": "2025-09-18T08:00:00Z",
-                            "isDiagnostic": False
+                            "isDiagnostic": True
                         },
                         {
                             "name": "firmware_update_available",
@@ -81,7 +82,7 @@ class TestTibberDataBinarySensor:
                             "value": True,
                             "dataType": "boolean",
                             "lastUpdated": "2025-07-01T10:00:00Z",
-                            "isDiagnostic": False
+                            "isDiagnostic": True
                         },
                         {
                             "name": "signal_strength",
@@ -97,6 +98,14 @@ class TestTibberDataBinarySensor:
                             "value": "1.2.3",
                             "dataType": "string",
                             "lastUpdated": "2025-07-01T10:00:00Z",
+                            "isDiagnostic": True
+                        },
+                        {
+                            "name": "isonline",
+                            "displayName": "Is Online",
+                            "value": False,
+                            "dataType": "boolean",
+                            "lastUpdated": "2025-09-18T08:00:00Z",
                             "isDiagnostic": True
                         }
                     ]
@@ -130,14 +139,16 @@ class TestTibberDataBinarySensor:
         await async_setup_entry(hass, mock_config_entry, mock_async_add_entities)
 
         # Should create binary sensors for boolean attributes
-        # 2 devices × 2 boolean attributes each = 4 sensors
-        assert len(entities) == 4
+        # device-123: 2 boolean attributes (connectivity_online, firmware_update_available)
+        # device-789: 3 boolean attributes (connectivity_online, firmware_update_available, isonline)
+        # Total: 5 sensors
+        assert len(entities) == 5
 
         # Verify sensor types by unique_id patterns
-        online_sensors = [e for e in entities if "connectivity_online" in e.unique_id]
+        online_sensors = [e for e in entities if "connectivity_online" in e.unique_id or "isonline" in e.unique_id]
         update_sensors = [e for e in entities if "firmware_update_available" in e.unique_id]
 
-        assert len(online_sensors) == 2  # One for each device
+        assert len(online_sensors) == 3  # connectivity_online for each device + isonline for device-789
         assert len(update_sensors) == 2  # One for each device
 
     def test_connectivity_binary_sensor_properties(self, mock_coordinator):
@@ -154,6 +165,7 @@ class TestTibberDataBinarySensor:
         assert sensor.unique_id == "tibber_data_device-123_connectivity_online"
         assert sensor.is_on is True  # Device is online
         assert sensor.device_class == BinarySensorDeviceClass.CONNECTIVITY
+        assert sensor.entity_category == EntityCategory.DIAGNOSTIC  # Connectivity is diagnostic
 
         # Test device info
         device_info = sensor.device_info
@@ -174,6 +186,7 @@ class TestTibberDataBinarySensor:
         assert sensor.unique_id == "tibber_data_device-789_firmware_update_available"
         assert sensor.is_on is True  # Update is available
         assert sensor.device_class == BinarySensorDeviceClass.UPDATE
+        assert sensor.entity_category == EntityCategory.DIAGNOSTIC  # Firmware attributes are diagnostic
 
     def test_binary_sensor_state_unavailable_when_device_offline(self, mock_coordinator):
         """Test binary sensor shows unavailable when device is offline."""
@@ -272,6 +285,34 @@ class TestTibberDataBinarySensor:
         # Should handle gracefully
         assert not sensor.available
         assert sensor.is_on is None
+
+    def test_isonline_attribute_is_diagnostic(self, mock_coordinator):
+        """Test that 'isonline' attribute is marked as diagnostic."""
+        sensor = TibberDataAttributeBinarySensor(
+            coordinator=mock_coordinator,
+            device_id="device-789",
+            attribute_path="isonline",
+            attribute_name="Is Online"
+        )
+
+        # Should be marked as diagnostic
+        assert sensor.entity_category == EntityCategory.DIAGNOSTIC
+        assert sensor.is_on is False
+        assert sensor.name == "Smart Charger Is Online"
+        # Check suggested_object_id format - isonline should become is_online
+        assert sensor.suggested_object_id == "tibber_data_smart_charger_is_online"
+
+    def test_suggested_object_id_format(self, mock_coordinator):
+        """Test that suggested_object_id uses device slug and lowercase attribute path."""
+        sensor = TibberDataAttributeBinarySensor(
+            coordinator=mock_coordinator,
+            device_id="device-123",
+            attribute_path="connectivity_online",
+            attribute_name="Online"
+        )
+
+        # Should use device name slug with attribute path
+        assert sensor.suggested_object_id == "tibber_data_test_ev_connectivity_online"
 
     def test_different_device_types_binary_sensors(self, mock_coordinator):
         """Test binary sensors for different device types."""

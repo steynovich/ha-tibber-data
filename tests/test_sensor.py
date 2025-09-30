@@ -2,6 +2,7 @@
 import pytest
 from unittest.mock import MagicMock
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import EntityCategory
 from custom_components.tibber_data.sensor import (
     async_setup_entry,
     TibberDataCapabilitySensor,
@@ -36,6 +37,13 @@ class TestTibberDataSensor:
                             "displayName": "Charging Power",
                             "value": 11.2,
                             "unit": "kW",
+                            "lastUpdated": "2025-09-18T10:30:00Z"
+                        },
+                        {
+                            "name": "signal_strength",
+                            "displayName": "Wi-Fi Signal Strength",
+                            "value": -45,
+                            "unit": "dBm",
                             "lastUpdated": "2025-09-18T10:30:00Z"
                         }
                     ]
@@ -110,6 +118,7 @@ class TestTibberDataSensor:
         assert sensor.native_value == 85.0
         assert sensor.native_unit_of_measurement == "%"
         assert sensor.device_class == "battery"  # Inferred from % unit
+        assert sensor.entity_category is None  # Battery level is NOT diagnostic
 
         # Test device info
         device_info = sensor.device_info
@@ -241,3 +250,41 @@ class TestTibberDataSensor:
 
         assert entity_entry.unique_id == "tibber_data_device-123_battery_level"
         assert entity_entry.original_name == "Test Device Battery Level"
+
+    def test_diagnostic_sensor_entity_category(self, mock_coordinator):
+        """Test that diagnostic sensors (like signal_strength) are marked as diagnostic."""
+        sensor = TibberDataCapabilitySensor(
+            coordinator=mock_coordinator,
+            device_id="device-123",
+            capability_name="signal_strength"
+        )
+
+        # Signal strength should be marked as diagnostic
+        assert sensor.entity_category == EntityCategory.DIAGNOSTIC
+        assert sensor.name == "Test Device Wi-Fi Signal Strength"
+        assert sensor.native_value == -45
+        assert sensor.native_unit_of_measurement == "dBm"
+        assert sensor.device_class == "signal_strength"
+        # Check suggested_object_id format
+        assert sensor.suggested_object_id == "tibber_data_test_device_signal_strength"
+
+    def test_suggested_object_id_with_camelcase(self, mock_coordinator):
+        """Test that suggested_object_id properly converts camelCase to snake_case."""
+        # Add a test capability with camelCase name
+        mock_coordinator.data["devices"]["device-123"]["capabilities"].append({
+            "name": "storage_availableEnergy",
+            "displayName": "Available Energy",
+            "value": 5.2,
+            "unit": "kWh",
+            "lastUpdated": "2025-09-18T10:30:00Z"
+        })
+
+        sensor = TibberDataCapabilitySensor(
+            coordinator=mock_coordinator,
+            device_id="device-123",
+            capability_name="storage_availableEnergy"
+        )
+
+        # Should convert camelCase to snake_case
+        assert sensor.suggested_object_id == "tibber_data_test_device_storage_available_energy"
+        assert sensor.name == "Test Device Available Energy"

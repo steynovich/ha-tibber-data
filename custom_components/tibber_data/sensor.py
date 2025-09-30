@@ -98,7 +98,7 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
 
         return SensorEntityDescription(
             key=capability_name,
-            name=display_name,
+            name=None,  # Let the entity's name property handle the full name
             device_class=device_class,
             state_class=state_class,
             native_unit_of_measurement=unit or None,

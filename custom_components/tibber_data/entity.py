@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER
@@ -197,6 +198,67 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
 
         return device_name
 
+    def _get_device_slug(self) -> str:
+        """Get a clean slug for the device to use in entity_id."""
+        device_data = self.device_data
+        if not device_data:
+            return "unknown_device"
+
+        # Get the device display name
+        device_name = self._get_device_display_name(device_data)
+
+        # Convert to lowercase and replace spaces/special chars with underscores
+        import re
+        slug = device_name.lower()
+        slug = re.sub(r'[^a-z0-9]+', '_', slug)
+        slug = slug.strip('_')
+
+        return slug or "unknown_device"
+
+    def _slugify_capability_name(self, name: str) -> str:
+        """Convert capability name to proper snake_case slug.
+
+        Handles camelCase, PascalCase, and existing snake_case.
+        Also handles common compound words like 'isonline' -> 'is_online'.
+
+        Examples:
+            availableEnergy -> available_energy
+            storage_availableEnergy -> storage_available_energy
+            battery_level -> battery_level
+            isonline -> is_online
+        """
+        import re
+
+        # First handle common compound words that should be split
+        # This is a list of common prefixes/patterns in lowercase
+        compound_patterns = [
+            (r'\bisonline\b', 'is_online'),
+            (r'\bisoffline\b', 'is_offline'),
+            (r'\bisconnected\b', 'is_connected'),
+            (r'\bhaserror\b', 'has_error'),
+            (r'\bcancharge\b', 'can_charge'),
+        ]
+
+        name_lower = name.lower()
+        for pattern, replacement in compound_patterns:
+            name_lower = re.sub(pattern, replacement, name_lower)
+
+        # If we made replacements, use the modified version
+        if name_lower != name.lower():
+            name = name_lower
+
+        # Insert underscore before capital letters (camelCase to snake_case)
+        name = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', name)
+        # Convert to lowercase
+        name = name.lower()
+        # Replace any remaining non-alphanumeric chars with underscore
+        name = re.sub(r'[^a-z0-9]+', '_', name)
+        # Remove duplicate underscores
+        name = re.sub(r'_+', '_', name)
+        # Strip leading/trailing underscores
+        name = name.strip('_')
+        return name
+
 
 class TibberDataDeviceEntity(TibberDataEntity):
     """Base class for device-level Tibber Data entities."""
@@ -212,7 +274,7 @@ class TibberDataDeviceEntity(TibberDataEntity):
 
     @property
     def name(self) -> str:
-        """Return entity name."""
+        """Return entity name (display name without Tibber prefix)."""
         device_data = self.device_data
         if not device_data:
             return f"Unknown Device {self._entity_name_suffix}"
@@ -226,6 +288,14 @@ class TibberDataDeviceEntity(TibberDataEntity):
         # Use device ID and entity suffix to create unique ID
         suffix_clean = self._entity_name_suffix.lower().replace(" ", "_")
         return f"tibber_data_{self._device_id}_{suffix_clean}"
+
+    @property
+    def suggested_object_id(self) -> str:
+        """Return suggested object_id (entity_id without domain)."""
+        device_slug = self._get_device_slug()
+        # Apply slugification to handle any special characters or camelCase
+        suffix_slug = self._slugify_capability_name(self._entity_name_suffix)
+        return f"tibber_data_{device_slug}_{suffix_slug}"
 
 
 class TibberDataCapabilityEntity(TibberDataDeviceEntity):
@@ -248,7 +318,7 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
 
     @property
     def name(self) -> str:
-        """Return entity name."""
+        """Return entity name (display name without Tibber prefix)."""
         capability_data = self.capability_data
         device_data = self.device_data
 
@@ -273,6 +343,13 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
         return f"tibber_data_{self._device_id}_{self._capability_name}"
 
     @property
+    def suggested_object_id(self) -> str:
+        """Return suggested object_id (entity_id without domain)."""
+        device_slug = self._get_device_slug()
+        capability_slug = self._slugify_capability_name(self._capability_name)
+        return f"tibber_data_{device_slug}_{capability_slug}"
+
+    @property
     def available(self) -> bool:
         """Return True if capability is available."""
         if not super().available:
@@ -280,6 +357,26 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
 
         # Capability is available if it has data
         return self.capability_data is not None
+
+    @property
+    def entity_category(self) -> Optional[EntityCategory]:
+        """Return the entity category for diagnostic capabilities."""
+        # Capabilities that are considered diagnostic (technical/troubleshooting info)
+        diagnostic_keywords = [
+            "signal", "rssi", "wifi", "lqi", "snr",  # Connectivity metrics
+            "voltage", "current", "frequency",  # Electrical diagnostics
+            "firmware", "version", "update",  # Software info
+            "uptime", "runtime", "cycles",  # Usage stats
+            "error", "warning", "status_code",  # Error tracking
+        ]
+
+        capability_name_lower = self._capability_name.lower()
+
+        # Check if capability name contains diagnostic keywords
+        if any(keyword in capability_name_lower for keyword in diagnostic_keywords):
+            return EntityCategory.DIAGNOSTIC
+
+        return None
 
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
@@ -328,12 +425,28 @@ class TibberDataAttributeEntity(TibberDataDeviceEntity):
         return f"tibber_data_{self._device_id}_{path_clean}"
 
     @property
+    def suggested_object_id(self) -> str:
+        """Return suggested object_id (entity_id without domain)."""
+        device_slug = self._get_device_slug()
+        # Apply slugification to handle compound words like 'isonline' -> 'is_online'
+        path_slug = self._slugify_capability_name(self._attribute_path.replace(".", "_"))
+        return f"tibber_data_{device_slug}_{path_slug}"
+
+    @property
     def available(self) -> bool:
         """Return True if attribute is available."""
         # Attributes like connectivity are always reportable
         # even for offline devices (they report the offline status)
         device_data = self.device_data
         return device_data is not None
+
+    @property
+    def entity_category(self) -> Optional[EntityCategory]:
+        """Return the entity category for diagnostic attributes."""
+        attribute_data = self.attribute_data
+        if attribute_data and attribute_data.get("isDiagnostic", False):
+            return EntityCategory.DIAGNOSTIC
+        return None
 
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
