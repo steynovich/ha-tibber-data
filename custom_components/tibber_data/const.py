@@ -5,7 +5,7 @@ from typing import Final
 # Integration details
 DOMAIN: Final = "tibber_data"
 INTEGRATION_NAME: Final = "Tibber Data"
-INTEGRATION_VERSION: Final = "1.0.0"
+INTEGRATION_VERSION: Final = "1.0.10"
 
 # Manufacturer information
 MANUFACTURER: Final = "Tibber"
@@ -152,6 +152,12 @@ CAPABILITY_MAPPINGS: Final = {
         "state_class": "measurement",
         "unit": "%",
         "icon": "mdi:wifi"
+    },
+
+    # Connectivity capabilities (override API displayName)
+    "isonline": {
+        "display_name": "Is online",
+        "icon": "mdi:wifi-check"
     }
 }
 
@@ -162,6 +168,11 @@ ATTRIBUTE_MAPPINGS: Final = {
         "device_class": "connectivity",
         "name_suffix": "Online",
         "icon": "mdi:wifi"
+    },
+    "isOnline": {
+        "device_class": "connectivity",
+        "name_suffix": "Is online",
+        "icon": "mdi:wifi-check"
     },
 
     # Firmware and update attributes
@@ -225,12 +236,12 @@ EVENT_DEVICE_ONLINE_STATUS_CHANGED: Final = f"{DOMAIN}_device_online_status_chan
 STARTUP_MESSAGE: Final = f"""
 -------------------------------------------------------------------
 {INTEGRATION_NAME} v{INTEGRATION_VERSION}
-This integration provides access to Tibber Data API for monitoring
-IoT devices connected through the Tibber platform.
+Access Tibber-connected devices via the Tibber Data API with
+automatic OAuth2 token refresh.
 
-Supported platforms: {', '.join(PLATFORMS)}
+Platforms: {', '.join(PLATFORMS)}
 Update interval: {DEFAULT_UPDATE_INTERVAL.total_seconds()}s
-API endpoint: {API_BASE_URL}
+API: {API_BASE_URL}
 -------------------------------------------------------------------
 """
 

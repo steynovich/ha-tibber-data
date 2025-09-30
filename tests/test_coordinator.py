@@ -1,6 +1,6 @@
 """Test device discovery coordinator integration."""
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import timedelta
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
@@ -30,10 +30,14 @@ class TestTibberDataCoordinator:
 
         config_entry = MagicMock(spec=ConfigEntry)
         config_entry.data = {
-            "client_id": "test_client_id",
-            "access_token": "test_access_token",
-            "refresh_token": "test_refresh_token",
-            "expires_at": dt_util.utcnow().timestamp() + 3600,  # Expires in 1 hour
+            "auth_implementation": "tibber_data",
+            "token": {
+                "access_token": "test_access_token",
+                "refresh_token": "test_refresh_token",
+                "expires_at": dt_util.utcnow().timestamp() + 3600,  # Expires in 1 hour
+                "token_type": "Bearer",
+                "expires_in": 3600,
+            },
         }
         config_entry.domain = DOMAIN
         config_entry.entry_id = "test_entry_id"
@@ -42,12 +46,21 @@ class TestTibberDataCoordinator:
         return config_entry
 
     @pytest.fixture
-    def coordinator(self, hass: HomeAssistant, mock_client, mock_config_entry):
+    def mock_oauth_session(self, mock_config_entry):
+        """Mock OAuth2Session."""
+        oauth_session = MagicMock()
+        oauth_session.async_ensure_token_valid = AsyncMock()
+        oauth_session.token = mock_config_entry.data["token"]
+        return oauth_session
+
+    @pytest.fixture
+    def coordinator(self, hass: HomeAssistant, mock_client, mock_config_entry, mock_oauth_session):
         """Create TibberDataUpdateCoordinator."""
         return TibberDataUpdateCoordinator(
             hass=hass,
             client=mock_client,
             config_entry=mock_config_entry,
+            oauth_session=mock_oauth_session,
             update_interval=timedelta(seconds=60)
         )
 
@@ -107,16 +120,18 @@ class TestTibberDataCoordinator:
         mock_client.get_homes_with_devices.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_token_refresh_before_expiry(self, coordinator, mock_client, mock_config_entry):
-        """Test automatic token refresh before expiry."""
-        # Set token to expire soon
-        mock_config_entry.data["expires_at"] = dt_util.utcnow().timestamp() + 300  # 5 minutes
-
-        mock_client.refresh_access_token.return_value = {
-            "access_token": "new_access_token",
+    async def test_token_refresh_via_oauth_session(self, coordinator, mock_client, mock_oauth_session):
+        """Test that OAuth2Session handles token refresh automatically."""
+        # Mock OAuth2Session to simulate token refresh
+        mock_oauth_session.async_ensure_token_valid = AsyncMock()
+        refreshed_token = {
+            "access_token": "refreshed_access_token",
             "refresh_token": "new_refresh_token",
-            "expires_in": 3600
+            "expires_at": dt_util.utcnow().timestamp() + 3600,
+            "token_type": "Bearer",
+            "expires_in": 3600,
         }
+        mock_oauth_session.token = refreshed_token
 
         # Mock empty response for get_homes_with_devices
         mock_client.get_homes_with_devices.return_value = ([], [])
@@ -124,7 +139,10 @@ class TestTibberDataCoordinator:
         # Call the update method
         data = await coordinator._async_update_data()
 
-        # Verify we got empty data (token refresh test would need more complex setup)
+        # Verify OAuth2Session.async_ensure_token_valid was called
+        mock_oauth_session.async_ensure_token_valid.assert_called_once()
+
+        # Verify we got empty data
         assert data["homes"] == {}
         assert data["devices"] == {}
 
@@ -146,12 +164,8 @@ class TestTibberDataCoordinator:
         # Mock unauthorized response
         mock_client.get_homes_with_devices.side_effect = ValueError("Invalid or expired token")
 
-        with patch.object(coordinator, '_ensure_valid_token', new_callable=AsyncMock):
-            with patch.object(coordinator, '_refresh_token', new_callable=AsyncMock) as mock_refresh:
-                mock_refresh.side_effect = Exception("Token refresh failed")
-
-                with pytest.raises(UpdateFailed, match="Authentication failed"):
-                    await coordinator._async_update_data()
+        with pytest.raises(UpdateFailed, match="Authentication failed"):
+            await coordinator._async_update_data()
 
     @pytest.mark.asyncio
     async def test_partial_device_failure(self, coordinator, mock_client):
@@ -192,8 +206,7 @@ class TestTibberDataCoordinator:
         mock_client.get_homes_with_devices.return_value = ([mock_home], [working_device])
 
         try:
-            with patch.object(coordinator, '_ensure_valid_token', new_callable=AsyncMock):
-                await coordinator.async_request_refresh()
+            await coordinator.async_request_refresh()
 
             # Verify partial data is available
             data = coordinator.data
@@ -272,8 +285,7 @@ class TestTibberDataCoordinator:
         mock_client.get_homes_with_devices.return_value = ([home1, home2], [device1, device2])
 
         try:
-            with patch.object(coordinator, '_ensure_valid_token', new_callable=AsyncMock):
-                await coordinator.async_request_refresh()
+            await coordinator.async_request_refresh()
 
             # Verify both homes and their devices are loaded
             data = coordinator.data
@@ -294,17 +306,16 @@ class TestTibberDataCoordinator:
         mock_client.get_homes_with_devices.return_value = ([], [])
 
         try:
-            with patch.object(coordinator, '_ensure_valid_token', new_callable=AsyncMock):
-                # First update
-                await coordinator.async_request_refresh()
-                first_call_count = mock_client.get_homes_with_devices.call_count
+            # First update
+            await coordinator.async_request_refresh()
+            first_call_count = mock_client.get_homes_with_devices.call_count
 
-                # Immediate second update should use cached data
-                await coordinator.async_request_refresh()
+            # Immediate second update should use cached data
+            await coordinator.async_request_refresh()
 
-                # Should not have made additional API calls due to update interval
-                # (This behavior depends on the coordinator implementation)
-                assert mock_client.get_homes_with_devices.call_count >= first_call_count
+            # Should not have made additional API calls due to update interval
+            # (This behavior depends on the coordinator implementation)
+            assert mock_client.get_homes_with_devices.call_count >= first_call_count
         finally:
             # Clean up any pending timers
             await coordinator.async_shutdown()
@@ -348,9 +359,7 @@ class TestTibberDataCoordinator:
         try:
             mock_client.get_homes_with_devices.return_value = ([mock_home], [mock_device_80])
 
-            # Mock the token validation to bypass authentication
-            with patch.object(coordinator, '_ensure_valid_token', new_callable=AsyncMock):
-                await coordinator.async_request_refresh()
+            await coordinator.async_request_refresh()
 
             first_battery_level = coordinator.data["devices"][device_uuid]["capabilities"][0]["value"]
             assert first_battery_level == 80.0
@@ -369,7 +378,7 @@ class TestTibberDataCoordinator:
             mock_device_85 = TibberDevice(
                 device_id=device_uuid,
                 external_id="ext-456",
-                    name="Tesla",
+                name="Tesla",
                 home_id="12345678-1234-5678-1234-567812345678",
                 online_status=True,
                 capabilities=[capability_85]
@@ -377,8 +386,7 @@ class TestTibberDataCoordinator:
 
             mock_client.get_homes_with_devices.return_value = ([mock_home], [mock_device_85])
 
-            with patch.object(coordinator, '_ensure_valid_token', new_callable=AsyncMock):
-                await coordinator.async_refresh()
+            await coordinator.async_refresh()
             second_battery_level = coordinator.data["devices"][device_uuid]["capabilities"][0]["value"]
             assert second_battery_level == 85.0
             assert second_battery_level != first_battery_level

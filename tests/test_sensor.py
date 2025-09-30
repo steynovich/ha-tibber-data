@@ -288,3 +288,109 @@ class TestTibberDataSensor:
         # Should convert camelCase to snake_case
         assert sensor.suggested_object_id == "tibber_data_test_device_storage_available_energy"
         assert sensor.name == "Test Device Available Energy"
+
+    def test_enum_sensor_string_values(self, mock_coordinator):
+        """Test ENUM sensors with string values (e.g., connector status, charging status)."""
+        # Add string-valued capabilities for EV
+        mock_coordinator.data["devices"]["device-123"]["capabilities"].extend([
+            {
+                "name": "connector.status",
+                "displayName": "vehicle plug status",
+                "value": "connected",
+                "unit": "",
+                "lastUpdated": "2025-09-18T10:30:00Z"
+            },
+            {
+                "name": "charging.status",
+                "displayName": "vehicle charging status",
+                "value": "idle",
+                "unit": "",
+                "lastUpdated": "2025-09-18T10:30:00Z"
+            }
+        ])
+
+        # Test connector status sensor
+        connector_sensor = TibberDataCapabilitySensor(
+            coordinator=mock_coordinator,
+            device_id="device-123",
+            capability_name="connector.status"
+        )
+
+        assert connector_sensor.native_value == "Connected"  # Title case
+        assert connector_sensor.device_class == "enum"
+        assert connector_sensor.state_class is None  # ENUM sensors don't have state_class
+        assert connector_sensor.options == ["Connected", "Disconnected", "Unknown"]
+
+        # Test charging status sensor
+        charging_sensor = TibberDataCapabilitySensor(
+            coordinator=mock_coordinator,
+            device_id="device-123",
+            capability_name="charging.status"
+        )
+
+        assert charging_sensor.native_value == "Idle"  # Title case
+        assert charging_sensor.device_class == "enum"
+        assert charging_sensor.options == ["Idle", "Charging", "Complete", "Error", "Unknown"]
+
+    def test_range_sensor_meters_to_kilometers(self, mock_coordinator):
+        """Test that range sensors convert meters to kilometers."""
+        # Add range capability in meters
+        mock_coordinator.data["devices"]["device-123"]["capabilities"].append({
+            "name": "range.remaining",
+            "displayName": "estimated remaining driving range",
+            "value": 67000,
+            "unit": "m",
+            "lastUpdated": "2025-09-18T10:30:00Z"
+        })
+
+        sensor = TibberDataCapabilitySensor(
+            coordinator=mock_coordinator,
+            device_id="device-123",
+            capability_name="range.remaining"
+        )
+
+        # Should convert 67000m to 67.0km
+        assert sensor.native_value == 67.0
+        assert sensor.native_unit_of_measurement == "km"
+
+    def test_ev_state_of_charge_sensor(self, mock_coordinator):
+        """Test EV state of charge sensor."""
+        # Add EV state of charge capabilities
+        mock_coordinator.data["devices"]["device-123"]["capabilities"].extend([
+            {
+                "name": "storage.stateOfCharge",
+                "displayName": "state of charge",
+                "value": 100,
+                "unit": "%",
+                "lastUpdated": "2025-09-18T10:30:00Z"
+            },
+            {
+                "name": "storage.targetStateOfCharge",
+                "displayName": "target state of charge",
+                "value": 80,
+                "unit": "%",
+                "lastUpdated": "2025-09-18T10:30:00Z"
+            }
+        ])
+
+        # Test state of charge sensor
+        soc_sensor = TibberDataCapabilitySensor(
+            coordinator=mock_coordinator,
+            device_id="device-123",
+            capability_name="storage.stateOfCharge"
+        )
+
+        assert soc_sensor.native_value == 100
+        assert soc_sensor.native_unit_of_measurement == "%"
+        assert soc_sensor.device_class == "battery"
+        assert soc_sensor.state_class == "measurement"
+
+        # Test target state of charge sensor
+        target_sensor = TibberDataCapabilitySensor(
+            coordinator=mock_coordinator,
+            device_id="device-123",
+            capability_name="storage.targetStateOfCharge"
+        )
+
+        assert target_sensor.native_value == 80
+        assert target_sensor.native_unit_of_measurement == "%"

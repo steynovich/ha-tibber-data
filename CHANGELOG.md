@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.10] - 2025-09-30
+
+### Added
+- **Full EV Support**: Complete support for Electric Vehicles with specialized sensors
+  - State of charge sensors (battery level)
+  - Target charge level sensors
+  - Estimated remaining range (automatically converted from meters to kilometers)
+  - Vehicle plug status (ENUM sensor: Connected/Disconnected/Unknown)
+  - Vehicle charging status (ENUM sensor: Idle/Charging/Complete/Error/Unknown)
+- **ENUM Sensors**: String-valued sensors with title case formatting for better readability
+- **Automatic Unit Conversion**: Range sensors automatically convert from meters to kilometers
+- **Binary Sensor Display Names**: Added "Is online" display name override for isOnline attribute
+
+### Fixed
+- **Case-Insensitive Online Detection**: Fixed bug where devices with camelCase attributes (e.g., `isOnline`) were incorrectly detected as offline
+  - Now properly detects online status regardless of attribute name casing
+  - Critical fix for EVs and other devices using camelCase attribute names
+- **Entity Default State**: All entities now enabled by default instead of being disabled when device is temporarily unavailable during setup
+- **String Sensor Validation**: ENUM sensors now properly declare device_class and options to prevent Home Assistant validation errors
+
+### Performance
+- **66% Reduction in Property Lookups**: Optimized sensor entity initialization
+  - Capability data fetched once and cached during initialization
+  - Reduced from 3 separate property calls to 1 cached lookup
+- **Optimized Online Status Detection**:
+  - Fast path when attributes is not a list
+  - Single lowercase conversion per attribute ID
+  - Direct equality checks instead of `in` operator
+  - Early continue for non-dict attributes
+  - Extracted helper method to reduce code duplication
+
+### Technical
+- Added `SensorDeviceClass.ENUM` for string-valued capabilities
+- String sensor values formatted with `.title()` for consistent display
+- Range conversion: values in meters with "range" in capability name automatically converted to km
+- Optimized `_determine_online_status()` with fast paths and helper methods
+- Refactored sensor methods to accept pre-fetched values (value, unit)
+- Added comprehensive tests for EV sensors, unit conversion, and online status detection
+- All code passes ruff linting with zero issues
+
 ## [1.0.9] - 2025-09-30
 
 ### Added

@@ -129,8 +129,9 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
     @property
     def entity_registry_enabled_default(self) -> bool:
         """Return if the entity should be enabled when first added."""
-        # Enable entities by default for online devices
-        return self.available
+        # Enable all entities by default
+        # The available property will handle runtime availability
+        return True
 
     def _get_capability_data(self, capability_name: str) -> Optional[Dict[str, Any]]:
         """Get capability data by name."""
@@ -319,6 +320,8 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
     @property
     def name(self) -> str:
         """Return entity name (display name without Tibber prefix)."""
+        from .const import CAPABILITY_MAPPINGS
+
         capability_data = self.capability_data
         device_data = self.device_data
 
@@ -328,8 +331,14 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
         # Get device name using fallback logic
         device_name = self._get_device_display_name(device_data)
 
-        # Get capability display name
-        if capability_data and "displayName" in capability_data:
+        # Get capability display name with priority:
+        # 1. Display name from CAPABILITY_MAPPINGS (overrides API)
+        # 2. displayName from API
+        # 3. Formatted capability name
+        mapping = CAPABILITY_MAPPINGS.get(self._capability_name, {})
+        if "display_name" in mapping:
+            capability_display_name = mapping["display_name"]
+        elif capability_data and "displayName" in capability_data:
             capability_display_name = capability_data["displayName"]
         else:
             # Fallback to formatted capability name

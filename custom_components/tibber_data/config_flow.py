@@ -1,17 +1,11 @@
 """OAuth2 configuration flow for Tibber Data integration."""
 from __future__ import annotations
 
-import base64
-import hashlib
 import logging
-import secrets
 from typing import Any, Dict, Optional
 
 from homeassistant import config_entries
-from homeassistant.components.application_credentials import (
-    AuthImplementation,
-)
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import callback
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.helpers import config_entry_oauth2_flow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -175,65 +169,3 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         )
 
 
-class TibberDataPKCEImplementation(config_entry_oauth2_flow.LocalOAuth2Implementation):
-    """OAuth2 implementation with PKCE for Tibber Data."""
-
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        domain: str,
-        client_id: str,
-        client_secret: Optional[str],
-        authorize_url: str,
-        token_url: str,
-    ) -> None:
-        """Initialize PKCE implementation."""
-        super().__init__(hass, domain, client_id, client_secret or "", authorize_url, token_url)
-        # Generate PKCE parameters
-        self._code_verifier = base64.urlsafe_b64encode(
-            secrets.token_bytes(32)
-        ).decode().rstrip('=')
-        code_challenge = base64.urlsafe_b64encode(
-            hashlib.sha256(self._code_verifier.encode()).digest()
-        ).decode().rstrip('=')
-        self._code_challenge = code_challenge
-        _LOGGER.debug("TibberDataPKCEImplementation: Generated PKCE parameters")
-
-    @property
-    def extra_authorize_data(self) -> Dict[str, str]:
-        """Return the extra authorize data for PKCE."""
-        _LOGGER.debug("TibberDataPKCEImplementation: Adding PKCE to authorize data")
-        return {
-            "code_challenge": self._code_challenge,
-            "code_challenge_method": "S256",
-        }
-
-    async def async_resolve_external_data(self, external_data: Any) -> Dict[str, Any]:
-        """Resolve external data and include code_verifier for token exchange."""
-        _LOGGER.debug("TibberDataPKCEImplementation: Adding code_verifier to token exchange")
-        if isinstance(external_data, dict) and 'code' in external_data:
-            external_data = {**external_data, "code_verifier": self._code_verifier}
-            _LOGGER.debug("TibberDataPKCEImplementation: Added code_verifier successfully")
-        resolved_data: Dict[str, Any] = await super().async_resolve_external_data(external_data)
-        return resolved_data
-
-
-async def async_get_config_flow_impl(
-    hass: HomeAssistant,
-    auth_implementation: AuthImplementation,
-) -> config_entry_oauth2_flow.AbstractOAuth2FlowHandler:
-    """Return a Tibber Data OAuth2 flow handler with PKCE support."""
-    # Create a PKCE-enabled OAuth2 implementation
-    pkce_implementation = TibberDataPKCEImplementation(
-        hass,
-        DOMAIN,
-        auth_implementation.client_id,
-        auth_implementation.client_secret,
-        auth_implementation.authorize_url,
-        auth_implementation.token_url,
-    )
-
-    # Create flow handler and register the PKCE implementation
-    flow_handler = TibberDataFlowHandler()
-    flow_handler.async_register_implementation(hass, pkce_implementation)
-    return flow_handler

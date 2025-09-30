@@ -66,6 +66,7 @@ pytest tests/test_coordinator.py # Test data coordinator
 - Use DataUpdateCoordinator for API polling
 - Implement proper OAuth2 flows with PKCE
 - HACS-compatible structure and metadata
+- Optimized code with minimal property lookups and efficient algorithms
 
 ## Key Implementation Details
 
@@ -90,6 +91,61 @@ pytest tests/test_coordinator.py # Test data coordinator
 
 ## Recent Changes
 - 001-build-a-hacs: Added HACS-compatible Tibber Data API integration with Platinum quality standards
+- 2025-09-30: Added full EV support with string-valued ENUM sensors, range conversion, and improved online status detection
+- 2025-09-30: Code optimizations - reduced property lookups by 66%, optimized online status detection with fast paths
+
+## EV Support Features
+
+### Sensor Types
+The integration supports both numeric and string-valued sensors for EVs and other devices:
+
+**Numeric Sensors:**
+- `storage.stateOfCharge` - Battery state of charge (%)
+- `storage.targetStateOfCharge` - Target charge level (%)
+- `range.remaining` - Estimated range (automatically converted from meters to km)
+
+**ENUM Sensors (string-valued):**
+- `connector.status` - Vehicle plug status ("Connected", "Disconnected", "Unknown")
+- `charging.status` - Charging status ("Idle", "Charging", "Complete", "Error", "Unknown")
+- String values are automatically formatted with title case for better display
+
+### Unit Conversions
+- Range sensors automatically convert from meters (m) to kilometers (km)
+- Example: API value of 67000m displays as 67.0 km
+- Conversion applies to any capability with "range" in the name and unit "m"
+
+### Device Online Status Detection
+The integration uses case-insensitive attribute matching to detect device online status:
+- Checks for `isOnline`, `isonline`, `connectivity.*` attributes
+- Falls back to `lastSeen` timestamp (online if seen within 5 minutes)
+- Defaults to online if no status information available
+- Critical for EVs which may use camelCase attribute names
+
+### Entity Configuration
+- All entities are enabled by default (changed from availability-based)
+- Entity availability is handled dynamically based on device online status
+- ENUM sensors use `SensorDeviceClass.ENUM` with no `state_class`
+- Range sensors maintain `state_class="measurement"` for statistics
+
+## Performance Optimizations
+
+### Sensor Entity Initialization
+- **Reduced property lookups**: Capability data is fetched once and cached during entity initialization
+- Changed from 3 separate `self.capability_data` calls to 1 cached lookup
+- Method signatures optimized to accept pre-fetched values (`value`, `unit`)
+- ~66% reduction in property access overhead during sensor creation
+
+### Online Status Detection
+- **Fast path optimization**: Early return when `attributes` is not a list
+- **Single string operations**: Lowercase conversion done once per attribute ID
+- **Optimized comparisons**: Direct equality checks instead of `in` operator for status values
+- **Helper method extraction**: `_check_last_seen_status()` reduces code duplication
+- **Early continue**: Skip non-dict attributes immediately to reduce unnecessary processing
+
+### Code Quality
+- All code passes ruff linting checks
+- No unused imports or dead code
+- Maintains backward compatibility with existing functionality
 
 <!-- MANUAL ADDITIONS START -->
 API documentation link https://data-api.tibber.com/docs/

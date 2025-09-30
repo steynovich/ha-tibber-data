@@ -15,14 +15,18 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 
 @pytest.fixture
 def mock_config_entry():
-    """Return a mock config entry."""
+    """Return a mock config entry with OAuth2 token structure."""
     return MockConfigEntry(
         domain="tibber_data",
         data={
-            "client_id": "test_client_id",
-            "access_token": "test_access_token",
-            "refresh_token": "test_refresh_token",
-            "expires_at": 1234567890,
+            "auth_implementation": "tibber_data",
+            "token": {
+                "access_token": "test_access_token",
+                "refresh_token": "test_refresh_token",
+                "expires_at": 1234567890,
+                "token_type": "Bearer",
+                "expires_in": 3600,
+            },
         },
         unique_id="test_user_id",
     )

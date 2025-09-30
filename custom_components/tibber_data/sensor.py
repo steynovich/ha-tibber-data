@@ -75,26 +75,26 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
         # Get mapping configuration
         mapping = CAPABILITY_MAPPINGS.get(capability_name, {})
 
+        # Cache capability data lookup
         capability_data = self.capability_data
         unit = capability_data.get("unit", "") if capability_data else ""
-        display_name = capability_data.get("displayName", capability_name.replace("_", " ").title()) if capability_data else capability_name.replace("_", " ").title()
+        value = capability_data.get("value") if capability_data else None
 
         # Determine device class based on mapping or unit
-        device_class: Optional[SensorDeviceClass] = None
         device_class_str = mapping.get("device_class")
         if device_class_str:
             # Convert string device class to enum
             try:
                 device_class = SensorDeviceClass(device_class_str)
             except ValueError:
-                device_class = self._infer_device_class_from_unit(unit)
+                device_class = self._infer_device_class_from_value_and_unit(value, unit)
         else:
-            device_class = self._infer_device_class_from_unit(unit)
+            device_class = self._infer_device_class_from_value_and_unit(value, unit)
 
         # Determine state class
         state_class = mapping.get("state_class")
         if not state_class:
-            state_class = self._infer_state_class(capability_name, unit)
+            state_class = self._infer_state_class_from_value(capability_name, value, unit)
 
         return SensorEntityDescription(
             key=capability_name,
@@ -105,8 +105,12 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
             icon=mapping.get("icon"),
         )
 
-    def _infer_device_class_from_unit(self, unit: str) -> Optional[SensorDeviceClass]:
-        """Infer device class from unit."""
+    def _infer_device_class_from_value_and_unit(self, value: Any, unit: str) -> Optional[SensorDeviceClass]:
+        """Infer device class from value and unit."""
+        # Check if the value is a string - if so, use ENUM device class
+        if isinstance(value, str):
+            return SensorDeviceClass.ENUM
+
         unit_mappings = {
             "%": SensorDeviceClass.BATTERY,
             "kW": SensorDeviceClass.POWER,
@@ -121,8 +125,13 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
         }
         return unit_mappings.get(unit)
 
-    def _infer_state_class(self, capability_name: str, unit: str) -> Optional[SensorStateClass]:
-        """Infer state class from capability name and unit."""
+    def _infer_state_class_from_value(self, capability_name: str, value: Any, unit: str) -> Optional[SensorStateClass]:
+        """Infer state class from capability name, value, and unit."""
+        # Check if the value is a string - if so, no state_class
+        if isinstance(value, str):
+            # String values should not have a state class
+            return None
+
         # Energy units (kWh, Wh) should use appropriate state class based on capability name
         if unit in ["kWh", "Wh"]:
             # Energy consumption/usage is typically total_increasing
@@ -159,7 +168,18 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
         if not capability_data:
             return None
 
-        return capability_data.get("value")
+        value = capability_data.get("value")
+        unit = capability_data.get("unit", "")
+
+        # Apply title case to string values for ENUM sensors
+        if isinstance(value, str) and self.entity_description.device_class == SensorDeviceClass.ENUM:
+            return value.title()
+
+        # Convert meters to kilometers for range/distance sensors
+        if isinstance(value, (int, float)) and unit == "m" and "range" in self._capability_name.lower():
+            return round(value / 1000, 1)  # Convert to km with 1 decimal place
+
+        return value
 
     @property
     def native_unit_of_measurement(self) -> Optional[str]:
@@ -168,7 +188,13 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
         if not capability_data:
             return None
 
-        return capability_data.get("unit")
+        unit = capability_data.get("unit", "")
+
+        # Convert meters to kilometers for range/distance sensors
+        if unit == "m" and "range" in self._capability_name.lower():
+            return "km"
+
+        return unit
 
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
@@ -196,6 +222,26 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
         if capability_data and "precision" in capability_data:
             precision: Optional[int] = capability_data["precision"]
             return precision
+        return None
+
+    @property
+    def options(self) -> Optional[list[str]]:
+        """Return the list of possible states for ENUM sensors."""
+        # Only provide options for string-valued sensors (ENUM device class)
+        if self.entity_description.device_class == SensorDeviceClass.ENUM:
+            capability_name = self._capability_name.lower()
+
+            # Define known options for specific capabilities (in title case to match native_value)
+            if "connector.status" in capability_name or "plug" in capability_name:
+                return ["Connected", "Disconnected", "Unknown"]
+            elif "charging.status" in capability_name or "charging_status" in capability_name:
+                return ["Idle", "Charging", "Complete", "Error", "Unknown"]
+            elif "status" in capability_name:
+                return ["Idle", "Active", "Error", "Unknown"]
+
+            # For unknown ENUM sensors, we can't predict options
+            # Home Assistant will accept any string value
+            return None
         return None
 
     @property

@@ -143,12 +143,21 @@ class TibberHome:
     @classmethod
     def from_api_data(cls, data: Dict[str, Any]) -> Self:
         """Create TibberHome from API response data."""
-        # According to API spec, name is in info.name
+        home_id = data["id"]
         info = data.get("info", {})
-        display_name = info.get("name", "Tibber Home Name")
+
+        # Try multiple possible locations for the home name
+        # The API returns name at root level, not in info.name as documented
+        display_name = (
+            data.get("name") or           # Actual location in API response
+            info.get("name") or           # Documented location per OpenAPI spec
+            info.get("displayName") or    # Alternative: displayName in info
+            data.get("displayName") or    # Alternative: displayName at root
+            f"Tibber Home {home_id[:8]}"  # Fallback to ID
+        )
 
         return cls(
-            home_id=data["id"],
+            home_id=home_id,
             display_name=display_name,
             time_zone=data.get("timeZone", "UTC"),  # Use UTC as fallback
             address=data.get("address"),
@@ -417,24 +426,39 @@ class TibberDevice:
         """Determine device online status from available data."""
         # Check if there's an explicit online status in attributes (array structure)
         attributes = data.get("attributes", [])
-        if isinstance(attributes, list):
-            for attr in attributes:
-                if isinstance(attr, dict):
-                    # Look for connectivity-related attributes
-                    attr_id = attr.get("id", "")
-                    if "connectivity" in attr_id or "online" in attr_id:
-                        if "value" in attr and isinstance(attr["value"], bool):
-                            return attr["value"]
-                        elif "status" in attr and attr["status"] in ["connected", "online"]:
-                            return True
-                        elif "status" in attr and attr["status"] in ["disconnected", "offline"]:
-                            return False
+        if not isinstance(attributes, list):
+            # Fast path: no attributes array, skip to fallback
+            return cls._check_last_seen_status(last_seen)
+
+        # Look for connectivity-related attributes
+        for attr in attributes:
+            if not isinstance(attr, dict):
+                continue
+
+            attr_id = attr.get("id", "").lower()  # Lowercase once
+            if "connectivity" not in attr_id and "online" not in attr_id:
+                continue
+
+            # Found a connectivity attribute, check its value
+            if "value" in attr and isinstance(attr["value"], bool):
+                return attr["value"]
+
+            # Check status field
+            status = attr.get("status")
+            if status == "connected" or status == "online":
+                return True
+            if status == "disconnected" or status == "offline":
+                return False
 
         # Fallback: consider online if seen within last 5 minutes
+        return cls._check_last_seen_status(last_seen)
+
+    @staticmethod
+    def _check_last_seen_status(last_seen: Optional[datetime]) -> bool:
+        """Check if device is online based on lastSeen timestamp."""
         if last_seen:
             five_minutes_ago = datetime.now(timezone.utc).timestamp() - 300
             return last_seen.timestamp() > five_minutes_ago
-
         # Default: assume online if no information available
         return True
 

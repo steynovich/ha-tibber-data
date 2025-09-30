@@ -8,20 +8,14 @@ from typing import Any, Dict, List, Optional
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.util import dt as dt_util
 
 from .api.client import TibberDataClient
-from .api.models import TibberOAuthSession, TibberDevice
+from .api.models import TibberDevice
 from .const import (
     DOMAIN,
     DATA_HOMES,
     DATA_DEVICES,
-    TOKEN_REFRESH_THRESHOLD,
     DEFAULT_UPDATE_INTERVAL,
-    CONF_CLIENT_ID,
-    CONF_ACCESS_TOKEN,
-    CONF_REFRESH_TOKEN,
-    CONF_EXPIRES_AT
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,15 +29,13 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
         hass: HomeAssistant,
         client: TibberDataClient,
         config_entry: ConfigEntry,
+        oauth_session: Optional[Any] = None,
         update_interval: Optional[timedelta] = None
     ) -> None:
         """Initialize the coordinator."""
         self.client = client
         self.config_entry: ConfigEntry = config_entry
-        self._oauth_session: Optional[TibberOAuthSession] = None
-
-        # Set up OAuth session from config entry data
-        self._setup_oauth_session()
+        self.oauth_session = oauth_session
 
         # Use provided update interval or default
         interval = update_interval or DEFAULT_UPDATE_INTERVAL
@@ -55,54 +47,28 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             update_interval=interval,
         )
 
-    def _setup_oauth_session(self) -> None:
-        """Set up OAuth session from config entry data."""
-        try:
-            # Home Assistant OAuth2 stores token data in nested structure under "token"
-            token_data = self.config_entry.data.get("token", {})
+    async def _get_access_token(self) -> str:
+        """Get current access token with automatic refresh via OAuth2Session."""
+        if not self.oauth_session:
+            _LOGGER.error("No OAuth2 session available")
+            raise UpdateFailed("No OAuth2 session - please re-authenticate")
 
-            # Extract token information from Home Assistant OAuth2 structure
-            access_token = token_data.get("access_token")
-            refresh_token = token_data.get("refresh_token")
-            expires_at = token_data.get("expires_at", 0)
+        # Ensure token is valid (will refresh if needed)
+        await self.oauth_session.async_ensure_token_valid()
 
-            # Fallback to direct access for compatibility
-            if not access_token:
-                access_token = self.config_entry.data.get("access_token") or self.config_entry.data.get(CONF_ACCESS_TOKEN)
-                refresh_token = self.config_entry.data.get("refresh_token") or self.config_entry.data.get(CONF_REFRESH_TOKEN)
-                expires_at = self.config_entry.data.get("expires_at", 0) or self.config_entry.data.get(CONF_EXPIRES_AT, 0)
+        # Get the token from OAuth2Session
+        token = self.oauth_session.token
+        if not token or "access_token" not in token:
+            _LOGGER.error("OAuth2Session returned invalid token")
+            raise UpdateFailed("Invalid OAuth2 token - please re-authenticate")
 
-            if not access_token:
-                raise ValueError("Missing OAuth2 access token in config entry")
-
-            # Handle scopes from token data or use default with all device category scopes
-            scopes = token_data.get("scope", "openid profile email offline_access data-api-user-read data-api-homes-read data-api-vehicles-read data-api-chargers-read data-api-thermostats-read data-api-energy-systems-read data-api-inverters-read")
-            if isinstance(scopes, str):
-                scopes = scopes.split()
-            elif not scopes:
-                scopes = ["openid", "profile", "email", "offline_access", "data-api-user-read", "data-api-homes-read", "data-api-vehicles-read", "data-api-chargers-read", "data-api-thermostats-read", "data-api-energy-systems-read", "data-api-inverters-read"]
-
-            self._oauth_session = TibberOAuthSession(
-                session_id=self.config_entry.entry_id,
-                user_id=self.config_entry.unique_id or "unknown",
-                access_token=access_token,
-                refresh_token=refresh_token or "",  # Allow empty refresh token
-                expires_at=expires_at,
-                scopes=scopes
-            )
-
-            # Set the OAuth session in the client
-            self.client.set_oauth_session(self._oauth_session)
-
-        except Exception as err:
-            _LOGGER.error("Failed to setup OAuth session: %s", err)
-            raise UpdateFailed(f"Authentication setup failed: {err}") from err
+        return token["access_token"]
 
     async def _async_update_data(self) -> Dict[str, Any]:
         """Fetch data from API endpoint."""
         try:
-            # Ensure we have a valid access token before making API calls
-            await self._ensure_valid_token()
+            # Get current access token
+            self.client._access_token = await self._get_access_token()
 
             # Fetch homes and devices
             homes_data, devices_data = await self.client.get_homes_with_devices()
@@ -176,15 +142,8 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
         except Exception as err:
             # Log specific error types for better debugging
             if "401" in str(err) or "Invalid or expired token" in str(err) or "Unauthorized" in str(err):
-                _LOGGER.error("Authentication failed - token may be expired: %s", err)
-                # Try to refresh token one more time
-                try:
-                    await self._refresh_token()
-                    # Retry the request once
-                    return await self._async_update_data()
-                except Exception as refresh_err:
-                    _LOGGER.error("Token refresh failed: %s", refresh_err)
-                    raise UpdateFailed("Authentication failed - please reconfigure") from refresh_err
+                _LOGGER.error("Authentication failed: %s", err)
+                raise UpdateFailed("Authentication failed - please reauthorize in integrations") from err
             elif "Rate limit exceeded" in str(err):
                 _LOGGER.warning("API rate limit exceeded, will retry later")
                 raise UpdateFailed("Rate limit exceeded") from err
@@ -195,79 +154,6 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 _LOGGER.error("Unexpected error fetching data: %s", err)
                 raise UpdateFailed(f"Unexpected error: {err}") from err
 
-    async def _ensure_valid_token(self) -> None:
-        """Ensure we have a valid access token."""
-        if not self._oauth_session:
-            raise UpdateFailed("No OAuth session available")
-
-        # Check if token needs refresh
-        current_time = int(dt_util.utcnow().timestamp())
-        if self._oauth_session.expires_at > 0:
-            time_until_expiry = self._oauth_session.expires_at - current_time
-            if time_until_expiry <= TOKEN_REFRESH_THRESHOLD:
-                _LOGGER.debug("Token expires in %d seconds, refreshing", time_until_expiry)
-                await self._refresh_token()
-
-    async def _refresh_token(self) -> None:
-        """Refresh the OAuth access token."""
-        if not self._oauth_session:
-            raise UpdateFailed("No OAuth session available")
-
-        try:
-            # Handle client_id from different OAuth2 formats
-            client_id = self.config_entry.data.get("client_id") or self.config_entry.data.get(CONF_CLIENT_ID)
-            if not client_id:
-                # For Home Assistant OAuth2, we don't have direct access to client_id
-                # In this case, we should trigger a reauth flow
-                _LOGGER.warning("Cannot refresh token - client ID not available, triggering reauth")
-                self.hass.async_create_task(
-                    self.hass.config_entries.flow.async_init(
-                        DOMAIN,
-                        context={"source": "reauth", "entry_id": self.config_entry.entry_id},
-                        data=self.config_entry.data,
-                    )
-                )
-                raise UpdateFailed("Authentication expired - please reauthorize in integrations")
-
-            refresh_response = await self.client.refresh_access_token(
-                client_id=client_id,
-                refresh_token=self._oauth_session.refresh_token
-            )
-
-            # Update OAuth session with new tokens
-            self._oauth_session.update_tokens(
-                access_token=refresh_response["access_token"],
-                refresh_token=refresh_response.get("refresh_token", self._oauth_session.refresh_token),
-                expires_in=refresh_response["expires_in"],
-                scopes=refresh_response.get("scope", "").split() if refresh_response.get("scope") else None
-            )
-
-            # Update config entry data (handle both formats)
-            new_data = dict(self.config_entry.data)
-
-            # Use the same keys that were in the original data
-            if "access_token" in new_data:
-                new_data["access_token"] = self._oauth_session.access_token
-                new_data["refresh_token"] = self._oauth_session.refresh_token
-                new_data["expires_at"] = self._oauth_session.expires_at
-            else:
-                new_data[CONF_ACCESS_TOKEN] = self._oauth_session.access_token
-                new_data[CONF_REFRESH_TOKEN] = self._oauth_session.refresh_token
-                new_data[CONF_EXPIRES_AT] = self._oauth_session.expires_at
-
-            self.hass.config_entries.async_update_entry(
-                self.config_entry,
-                data=new_data
-            )
-
-            # Update client with new token
-            self.client.set_oauth_session(self._oauth_session)
-
-            _LOGGER.debug("Successfully refreshed OAuth token")
-
-        except Exception as err:
-            _LOGGER.error("Failed to refresh token: %s", err)
-            raise UpdateFailed(f"Token refresh failed: {err}") from err
 
     async def async_get_device_data(self, device_id: str) -> Optional[Dict[str, Any]]:
         """Get data for a specific device."""
@@ -292,6 +178,13 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 return False
 
             home_id = device_data["home_id"]
+
+            # Ensure we have a valid token before making API call
+            try:
+                self.client._access_token = await self._get_access_token()
+            except UpdateFailed as err:
+                _LOGGER.error("Failed to get valid token for device update: %s", err)
+                return False
 
             # Fetch updated device details
             updated_device_data = await self.client.get_device_details(home_id, device_id)
@@ -379,20 +272,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             if device.get("home_id") == home_id
         ]
 
-    @property
-    def oauth_session(self) -> Optional[TibberOAuthSession]:
-        """Get the current OAuth session."""
-        return self._oauth_session
-
     async def async_close(self) -> None:
         """Close the coordinator and cleanup resources."""
         if self.client:
             await self.client.close()
-
-    async def async_refresh_token_if_needed(self) -> bool:
-        """Refresh token if needed and return True if refreshed."""
-        try:
-            await self._ensure_valid_token()
-            return True
-        except UpdateFailed:
-            return False

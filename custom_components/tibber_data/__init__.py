@@ -6,6 +6,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_entry_oauth2_flow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import async_get as async_get_device_registry, DeviceEntryType
 
@@ -15,7 +16,8 @@ from .const import (
     PLATFORMS,
     DATA_COORDINATOR,
     DATA_CLIENT,
-    STARTUP_MESSAGE
+    DATA_OAUTH_SESSION,
+    STARTUP_MESSAGE,
 )
 from .coordinator import TibberDataUpdateCoordinator
 
@@ -29,24 +31,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Initialize aiohttp session
     session = async_get_clientsession(hass)
 
-    # Create API client - client_id is not needed for API operations
-    # It's only used for OAuth2 flow which is handled by the config flow
-    client = TibberDataClient(
-        session=session
+    # Create OAuth2 session for automatic token refresh
+    implementation = await config_entry_oauth2_flow.async_get_config_entry_implementation(
+        hass, entry
     )
+    oauth_session = config_entry_oauth2_flow.OAuth2Session(hass, entry, implementation)
 
-    # Create update coordinator
+    # Create API client
+    client = TibberDataClient(session=session)
+
+    # Create update coordinator with OAuth2 session
     coordinator = TibberDataUpdateCoordinator(
         hass=hass,
         client=client,
-        config_entry=entry
+        config_entry=entry,
+        oauth_session=oauth_session
     )
 
-    # Store coordinator and client in hass.data
+    # Store coordinator, client, and OAuth session in hass.data
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
         DATA_COORDINATOR: coordinator,
-        DATA_CLIENT: client
+        DATA_CLIENT: client,
+        DATA_OAUTH_SESSION: oauth_session
     }
 
     # Fetch initial data
@@ -115,7 +122,8 @@ async def _async_register_devices(
     registered_homes = set()
     if "homes" in coordinator.data:
         for home_id, home_data in coordinator.data["homes"].items():
-            home_name = home_data.get("displayName", f"Tibber Home {home_id[:8]}")
+            base_name = home_data.get("displayName") or f"Home {home_id[:8]}"
+            home_name = f"Tibber Data {base_name}"
 
             # Register hub device for the home
             device_registry.async_get_or_create(
