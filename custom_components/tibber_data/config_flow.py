@@ -93,8 +93,25 @@ class TibberDataFlowHandler(
             home_ids = [home.get("id", "") for home in homes_data]
             user_id = "_".join(sorted(home_ids))[:50] if home_ids else "unknown"
 
-            # Check for existing entry
+            # Check for existing entry - but allow updates during reauth
             await self.async_set_unique_id(user_id)
+
+            # If this is a reauth flow, update the existing entry instead of creating a new one
+            if self.source == config_entries.SOURCE_REAUTH:
+                # Find the existing entry to update
+                existing_entry = None
+                for entry in self._async_current_entries():
+                    if entry.unique_id == user_id:
+                        existing_entry = entry
+                        break
+
+                if existing_entry:
+                    _LOGGER.info("Updating existing entry during reauth")
+                    self.hass.config_entries.async_update_entry(existing_entry, data=data)
+                    await self.hass.config_entries.async_reload(existing_entry.entry_id)
+                    return self.async_abort(reason="reauth_successful")
+
+            # For normal flow, abort if already configured
             self._abort_if_unique_id_configured()
 
             # Create a descriptive title

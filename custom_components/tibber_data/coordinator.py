@@ -53,8 +53,15 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             _LOGGER.error("No OAuth2 session available")
             raise UpdateFailed("No OAuth2 session - please re-authenticate")
 
-        # Ensure token is valid (will refresh if needed)
-        await self.oauth_session.async_ensure_token_valid()
+        try:
+            # Ensure token is valid (will refresh if needed)
+            await self.oauth_session.async_ensure_token_valid()
+        except Exception as err:
+            _LOGGER.warning("Cannot refresh token - client ID not available, triggering reauth")
+            _LOGGER.error("Failed to refresh token: %s", err)
+            # Trigger reauth flow
+            self.config_entry.async_start_reauth(self.hass)
+            raise UpdateFailed(f"Token refresh failed: {err}") from err
 
         # Get the token from OAuth2Session
         token = self.oauth_session.token
