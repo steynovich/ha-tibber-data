@@ -5,7 +5,7 @@ from typing import Final
 # Integration details
 DOMAIN: Final = "tibber_data"
 INTEGRATION_NAME: Final = "Tibber Data"
-INTEGRATION_VERSION: Final = "1.0.10"
+INTEGRATION_VERSION: Final = "1.0.12"
 
 # Manufacturer information
 MANUFACTURER: Final = "Tibber"
@@ -161,9 +161,9 @@ CAPABILITY_MAPPINGS: Final = {
     }
 }
 
-# Device attribute types and their binary sensor mappings
+# Device attribute types and their sensor/binary sensor mappings
 ATTRIBUTE_MAPPINGS: Final = {
-    # Connectivity attributes
+    # Connectivity attributes (binary sensors)
     "connectivity.online": {
         "device_class": "connectivity",
         "name_suffix": "Online",
@@ -175,25 +175,37 @@ ATTRIBUTE_MAPPINGS: Final = {
         "icon": "mdi:wifi-check"
     },
 
-    # Firmware and update attributes
+    # Firmware and update attributes (binary sensors)
     "firmware.updateAvailable": {
         "device_class": "update",
         "name_suffix": "Update Available",
         "icon": "mdi:update"
     },
 
-    # Charging status
+    # Charging status (binary sensors)
     "charging_status.is_charging": {
         "device_class": "battery_charging",
         "name_suffix": "Charging",
         "icon": "mdi:battery-charging"
     },
 
-    # Generic problem/issue attributes
+    # Generic problem/issue attributes (binary sensors)
     "status.has_error": {
         "device_class": "problem",
         "name_suffix": "Error",
         "icon": "mdi:alert-circle"
+    },
+
+    # Identifier attributes (sensors)
+    "vinNumber": {
+        "name_suffix": "VIN Number",
+        "icon": "mdi:identifier",
+        "entity_category": "diagnostic"
+    },
+    "serialNumber": {
+        "name_suffix": "Serial Number",
+        "icon": "mdi:identifier",
+        "entity_category": "diagnostic"
     }
 }
 

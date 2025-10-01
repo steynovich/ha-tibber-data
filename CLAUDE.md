@@ -93,21 +93,29 @@ pytest tests/test_coordinator.py # Test data coordinator
 - 001-build-a-hacs: Added HACS-compatible Tibber Data API integration with Platinum quality standards
 - 2025-09-30: Added full EV support with string-valued ENUM sensors, range conversion, and improved online status detection
 - 2025-09-30: Code optimizations - reduced property lookups by 66%, optimized online status detection with fast paths
+- 2025-10-01: Fixed OAuth2 token refresh and reauthentication flow
+- 2025-10-01: Added attribute sensors for non-boolean device attributes (VIN number, serial numbers, etc.)
 
 ## EV Support Features
 
 ### Sensor Types
-The integration supports both numeric and string-valued sensors for EVs and other devices:
+The integration supports numeric, string-valued, and attribute sensors for EVs and other devices:
 
-**Numeric Sensors:**
+**Numeric Capability Sensors:**
 - `storage.stateOfCharge` - Battery state of charge (%)
 - `storage.targetStateOfCharge` - Target charge level (%)
 - `range.remaining` - Estimated range (automatically converted from meters to km)
 
-**ENUM Sensors (string-valued):**
+**ENUM Capability Sensors (string-valued):**
 - `connector.status` - Vehicle plug status ("Connected", "Disconnected", "Unknown")
 - `charging.status` - Charging status ("Idle", "Charging", "Complete", "Error", "Unknown")
 - String values are automatically formatted with title case for better display
+
+**Attribute Sensors (from device attributes):**
+- `vinNumber` - Vehicle identification number (diagnostic sensor)
+- `serialNumber` - Device serial number (diagnostic sensor)
+- All non-boolean string/numeric attributes exposed as sensors
+- Boolean attributes remain as binary sensors
 
 ### Unit Conversions
 - Range sensors automatically convert from meters (m) to kilometers (km)
@@ -150,4 +158,5 @@ The integration uses case-insensitive attribute matching to detect device online
 <!-- MANUAL ADDITIONS START -->
 API documentation link https://data-api.tibber.com/docs/
 API specifications https://data-api.tibber.com/openapi/v1.json
+When creating a new release: update changelog and documentation. Create a git commit and git tag, finally create GitHub release.
 <!-- MANUAL ADDITIONS END -->

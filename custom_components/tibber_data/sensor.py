@@ -12,11 +12,12 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, DATA_COORDINATOR, CAPABILITY_MAPPINGS
+from .const import DOMAIN, DATA_COORDINATOR, CAPABILITY_MAPPINGS, ATTRIBUTE_MAPPINGS
 from .coordinator import TibberDataUpdateCoordinator
-from .entity import TibberDataCapabilityEntity
+from .entity import TibberDataCapabilityEntity, TibberDataAttributeEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ async def async_setup_entry(
     """Set up Tibber Data sensor entities."""
     coordinator: TibberDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id][DATA_COORDINATOR]
 
-    entities: List[TibberDataCapabilitySensor] = []
+    entities: List[SensorEntity] = []
 
     if coordinator.data and "devices" in coordinator.data:
         for device_id, device_data in coordinator.data["devices"].items():
@@ -49,6 +50,25 @@ async def async_setup_entry(
                         capability_name=capability_name
                     )
                 )
+
+            # Create sensor entities for non-boolean device attributes
+            for attribute in device_data.get("attributes", []):
+                attribute_value = attribute.get("value")
+
+                # Skip boolean attributes (handled by binary_sensor platform)
+                if isinstance(attribute_value, bool):
+                    continue
+
+                # Create sensor for string/numeric attributes
+                if isinstance(attribute_value, (str, int, float)):
+                    entities.append(
+                        TibberDataAttributeSensor(
+                            coordinator=coordinator,
+                            device_id=device_id,
+                            attribute_path=attribute["name"],
+                            attribute_name=attribute.get("displayName", attribute["name"])
+                        )
+                    )
 
     if entities:
         async_add_entities(entities, True)
@@ -81,6 +101,7 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
         value = capability_data.get("value") if capability_data else None
 
         # Determine device class based on mapping or unit
+        device_class: SensorDeviceClass | None = None
         device_class_str = mapping.get("device_class")
         if device_class_str:
             # Convert string device class to enum
@@ -105,13 +126,13 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
             icon=mapping.get("icon"),
         )
 
-    def _infer_device_class_from_value_and_unit(self, value: Any, unit: str) -> Optional[SensorDeviceClass]:
+    def _infer_device_class_from_value_and_unit(self, value: Any, unit: str) -> SensorDeviceClass | None:
         """Infer device class from value and unit."""
         # Check if the value is a string - if so, use ENUM device class
         if isinstance(value, str):
             return SensorDeviceClass.ENUM
 
-        unit_mappings = {
+        unit_mappings: dict[str, SensorDeviceClass] = {
             "%": SensorDeviceClass.BATTERY,
             "kW": SensorDeviceClass.POWER,
             "W": SensorDeviceClass.POWER,
@@ -295,3 +316,134 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
             return "mdi:wifi"
 
         return None
+
+
+class TibberDataAttributeSensor(TibberDataAttributeEntity, SensorEntity):
+    """Sensor entity for non-boolean device attributes."""
+
+    def __init__(
+        self,
+        coordinator: TibberDataUpdateCoordinator,
+        device_id: str,
+        attribute_path: str,
+        attribute_name: str
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, device_id, attribute_path, attribute_name)
+
+        # Set entity description based on attribute type
+        self.entity_description = self._get_entity_description(attribute_path, attribute_name)
+
+    def _get_entity_description(
+        self,
+        attribute_path: str,
+        attribute_name: str
+    ) -> SensorEntityDescription:
+        """Get entity description for attribute."""
+        # Get mapping configuration
+        mapping = ATTRIBUTE_MAPPINGS.get(attribute_path, {})
+
+        # Get attribute data to determine type
+        attribute_data = self.attribute_data
+        value = attribute_data.get("value") if attribute_data else None
+
+        # Determine device class
+        device_class: Optional[SensorDeviceClass] = None
+        device_class_str = mapping.get("device_class")
+        if device_class_str:
+            try:
+                device_class = SensorDeviceClass(device_class_str)
+            except ValueError:
+                device_class = self._infer_device_class_from_attribute(attribute_path, value)
+        else:
+            device_class = self._infer_device_class_from_attribute(attribute_path, value)
+
+        # String values should not have state_class
+        state_class = None if isinstance(value, str) else SensorStateClass.MEASUREMENT
+
+        return SensorEntityDescription(
+            key=attribute_path,
+            name=None,  # Let the entity's name property handle the full name
+            device_class=device_class,
+            state_class=state_class,
+            icon=mapping.get("icon"),
+        )
+
+    def _infer_device_class_from_attribute(
+        self,
+        attribute_path: str,
+        value: Any
+    ) -> Optional[SensorDeviceClass]:
+        """Infer device class from attribute path and value."""
+        # String values should use ENUM device class
+        if isinstance(value, str):
+            return SensorDeviceClass.ENUM
+
+        path_lower = attribute_path.lower()
+
+        # Check for known attribute patterns
+        if "vin" in path_lower or "serial" in path_lower or "id" in path_lower:
+            return None  # No specific device class for identifiers
+        elif "version" in path_lower or "firmware" in path_lower:
+            return None  # No specific device class for version strings
+
+        return None
+
+    @property
+    def native_value(self) -> Optional[str | int | float]:
+        """Return the state of the sensor."""
+        attribute_data = self.attribute_data
+        if not attribute_data:
+            return None
+
+        value = attribute_data.get("value")
+
+        # String values are returned as-is (no title case for attributes)
+        return value
+
+    @property
+    def entity_category(self) -> EntityCategory | None:
+        """Return the entity category."""
+        # Check mapping configuration first
+        mapping = ATTRIBUTE_MAPPINGS.get(self._attribute_path, {})
+        if "entity_category" in mapping:
+            entity_cat_str = mapping["entity_category"]
+            try:
+                return EntityCategory(entity_cat_str)
+            except ValueError:
+                pass
+
+        # Get attribute data to check if diagnostic
+        attribute_data = self.attribute_data
+        if attribute_data and attribute_data.get("is_diagnostic", False):
+            return EntityCategory.DIAGNOSTIC
+        return None
+
+    @property
+    def icon(self) -> Optional[str]:
+        """Return the icon for the entity."""
+        # Check if entity description has an icon
+        if hasattr(self.entity_description, 'icon') and self.entity_description.icon:
+            return self.entity_description.icon
+
+        # Dynamic icons based on attribute path
+        attribute_path = self._attribute_path.lower()
+
+        if "vin" in attribute_path or "serial" in attribute_path:
+            return "mdi:identifier"
+        elif "version" in attribute_path or "firmware" in attribute_path:
+            return "mdi:information-outline"
+
+        return None
+
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        """Return extra state attributes."""
+        attributes = super().extra_state_attributes
+
+        # Add attribute-specific information
+        device_data = self.device_data
+        if not device_data:
+            return attributes
+
+        return attributes

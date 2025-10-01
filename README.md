@@ -114,6 +114,8 @@ If you have multiple Tibber homes, all devices will be discovered automatically.
 The integration creates the following types of entities:
 
 ### Sensors
+
+**Capability Sensors** (from device capabilities):
 - **Battery Level** (%) - For EVs and battery storage systems
 - **Charging Power** (kW) - Current charging/discharging power
 - **Temperature** (°C) - For thermostats and heat pumps
@@ -121,6 +123,14 @@ The integration creates the following types of entities:
 - **Solar Production** (kWh) - Total solar energy produced
 - **Charging Current** (A) - Current draw during charging
 - **Signal Strength** (%) - Device connectivity strength
+- **Charging Status** (ENUM) - Vehicle charging status (Idle/Charging/Complete/Error/Unknown)
+- **Connector Status** (ENUM) - Vehicle plug status (Connected/Disconnected/Unknown)
+- **Estimated Range** (km) - Remaining driving range (converted from meters)
+
+**Attribute Sensors** (from device attributes):
+- **VIN Number** - Vehicle identification number (diagnostic)
+- **Serial Number** - Device serial number (diagnostic)
+- Other string/numeric device attributes as applicable
 
 ### Binary Sensors
 - **Online** - Whether the device is connected
