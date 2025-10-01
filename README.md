@@ -125,11 +125,18 @@ The integration creates the following types of entities:
 - **Signal Strength** (%) - Device connectivity strength
 - **Charging Status** (ENUM) - Vehicle charging status (Idle/Charging/Complete/Error/Unknown)
 - **Connector Status** (ENUM) - Vehicle plug status (Connected/Disconnected/Unknown)
+- **Cellular Connectivity** (ENUM) - Cellular connection status
+- **WiFi Connectivity** (ENUM) - WiFi connection status
 - **Estimated Range** (km) - Remaining driving range (converted from meters)
+- **Energy Flow Sensors** - Automatically formatted for clarity:
+  - Grid Import Energy (Hour/Day/etc.) - Energy imported from grid
+  - Grid Export Energy from Battery (Hour/Day/etc.) - Battery energy exported to grid
+  - Load Energy from Battery (Hour/Day/etc.) - Battery energy used by load
 
 **Attribute Sensors** (from device attributes):
 - **VIN Number** - Vehicle identification number (diagnostic)
 - **Serial Number** - Device serial number (diagnostic)
+- **Firmware Version** - Current firmware version (diagnostic)
 - Other string/numeric device attributes as applicable
 
 ### Binary Sensors

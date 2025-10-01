@@ -262,8 +262,18 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
         if self.entity_description.device_class == SensorDeviceClass.ENUM:
             capability_name = self._capability_name.lower()
 
+            # Check if API provides availableValues for this ENUM
+            capability_data = self.capability_data
+            if capability_data and "availableValues" in capability_data:
+                # Use API-provided values and apply title case formatting
+                available_values = capability_data.get("availableValues", [])
+                if isinstance(available_values, list) and available_values:
+                    return [str(val).title() for val in available_values]
+
             # Define known options for specific capabilities (in title case to match native_value)
-            if "connector.status" in capability_name or "plug" in capability_name:
+            if "connectivity" in capability_name and ("cellular" in capability_name or "wifi" in capability_name):
+                return ["Connected", "Disconnected", "Poor", "Fair", "Good", "Excellent", "Unknown"]
+            elif "connector.status" in capability_name or "plug" in capability_name:
                 return ["Connected", "Disconnected", "Unknown"]
             elif "charging.status" in capability_name or "charging_status" in capability_name:
                 return ["Idle", "Charging", "Complete", "Error", "Unknown"]

@@ -333,11 +333,14 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
 
         # Get capability display name with priority:
         # 1. Display name from CAPABILITY_MAPPINGS (overrides API)
-        # 2. displayName from API
-        # 3. Formatted capability name
+        # 2. Dynamic formatting for energyFlow capabilities
+        # 3. displayName from API
+        # 4. Formatted capability name
         mapping = CAPABILITY_MAPPINGS.get(self._capability_name, {})
         if "display_name" in mapping:
             capability_display_name = mapping["display_name"]
+        elif "energyflow" in self._capability_name.lower():
+            capability_display_name = self._format_energy_flow_name(self._capability_name)
         elif capability_data and "displayName" in capability_data:
             capability_display_name = capability_data["displayName"]
         else:
@@ -386,6 +389,60 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
             return EntityCategory.DIAGNOSTIC
 
         return None
+
+    def _format_energy_flow_name(self, capability_name: str) -> str:
+        """Format energy flow capability names dynamically.
+
+        Examples:
+            load.energyFlow.sourceBattery.hour -> Load Energy from Battery (Hour)
+            grid.energyFlow.sourceGrid.hour -> Grid Import Energy (Hour)
+            grid.energyFlow.sourceBattery.hour -> Grid Export Energy from Battery (Hour)
+        """
+        parts = capability_name.split(".")
+
+        # Extract components
+        destination = None
+        source = None
+        time_period = None
+
+        for i, part in enumerate(parts):
+            part_lower = part.lower()
+            if part_lower in ["load", "grid", "solar", "battery"]:
+                if destination is None:
+                    destination = part.title()
+            elif part_lower.startswith("source"):
+                # Extract source name (e.g., sourceBattery -> Battery)
+                source_value = part[6:]  # Remove "source" prefix
+                if source_value:
+                    source = source_value.title()
+            elif part_lower in ["hour", "day", "week", "month", "year", "minute"]:
+                time_period = part.title()
+
+        # Build display name
+        if not destination:
+            # Fallback if we can't parse
+            return capability_name.replace(".", " ").replace("_", " ").title()
+
+        # Handle special cases
+        if destination == "Grid":
+            if source == "Grid":
+                # Grid energy from grid = Grid Import
+                display_name = "Grid Import Energy"
+            elif source:
+                # Grid energy from battery = Grid Export (to grid from battery)
+                display_name = f"Grid Export Energy from {source}"
+            else:
+                display_name = f"{destination} Energy"
+        elif source:
+            display_name = f"{destination} Energy from {source}"
+        else:
+            display_name = f"{destination} Energy"
+
+        # Add time period if present
+        if time_period:
+            display_name = f"{display_name} ({time_period})"
+
+        return display_name
 
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:

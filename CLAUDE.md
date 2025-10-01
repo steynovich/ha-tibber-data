@@ -95,6 +95,7 @@ pytest tests/test_coordinator.py # Test data coordinator
 - 2025-09-30: Code optimizations - reduced property lookups by 66%, optimized online status detection with fast paths
 - 2025-10-01: Fixed OAuth2 token refresh and reauthentication flow
 - 2025-10-01: Added attribute sensors for non-boolean device attributes (VIN number, serial numbers, etc.)
+- 2025-10-01: Dynamic energy flow sensor naming - automatically formats confusing energy flow capability names into readable display names
 
 ## EV Support Features
 

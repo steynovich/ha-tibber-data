@@ -5,7 +5,7 @@ from typing import Final
 # Integration details
 DOMAIN: Final = "tibber_data"
 INTEGRATION_NAME: Final = "Tibber Data"
-INTEGRATION_VERSION: Final = "1.0.13"
+INTEGRATION_VERSION: Final = "1.0.14"
 
 # Manufacturer information
 MANUFACTURER: Final = "Tibber"
@@ -158,6 +158,22 @@ CAPABILITY_MAPPINGS: Final = {
     "isonline": {
         "display_name": "Is online",
         "icon": "mdi:wifi-check"
+    },
+    "connectivity.cellular": {
+        "display_name": "Cellular Connectivity",
+        "device_class": "enum",
+        "icon": "mdi:signal"
+    },
+    "connectivity.wifi": {
+        "display_name": "WiFi Connectivity",
+        "device_class": "enum",
+        "icon": "mdi:wifi"
+    },
+
+    # Firmware capabilities (override API displayName)
+    "firmwareversion": {
+        "display_name": "Firmware Version",
+        "icon": "mdi:chip"
     }
 }
 
@@ -205,6 +221,13 @@ ATTRIBUTE_MAPPINGS: Final = {
     "serialNumber": {
         "name_suffix": "Serial Number",
         "icon": "mdi:identifier",
+        "entity_category": "diagnostic"
+    },
+
+    # Firmware attributes (sensors)
+    "firmwareVersion": {
+        "name_suffix": "Firmware Version",
+        "icon": "mdi:chip",
         "entity_category": "diagnostic"
     }
 }

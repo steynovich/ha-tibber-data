@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.14] - 2025-10-01
+
+### Fixed
+- **Energy Flow Sensor Names**: Dynamic formatting for energy flow capability display names
+  - `grid.energyFlow.sourceGrid.hour` now displays as "Grid Import Energy (Hour)"
+  - `load.energyFlow.sourceBattery.hour` now displays as "Load Energy from Battery (Hour)"
+  - `grid.energyFlow.sourceBattery.hour` now displays as "Grid Export Energy from Battery (Hour)"
+  - Automatically parses energy flow capability paths to generate meaningful names
+  - Eliminates confusing API display names like "Energyflow.Hour.Grid.Source.Grid"
+- **Connectivity Sensor States**: Fixed ENUM sensors for connectivity capabilities
+  - `connectivity.cellular` and `connectivity.wifi` now show proper states instead of "unknown"
+  - Dynamic option detection from API's `availableValues` field
+  - Fallback to predefined options (Connected, Disconnected, Poor, Fair, Good, Excellent, Unknown)
+- **Display Name Improvements**:
+  - "firmwareversion" now displays as "Firmware Version"
+  - Firmware version attributes marked as diagnostic entities
+
+### Technical
+- Added `_format_energy_flow_name()` method to dynamically parse and format energy flow capabilities
+- Energy flow formatting takes precedence over API displayName values
+- Supports all time periods (hour, day, week, month, year, minute)
+- Handles multiple source/destination combinations (load, grid, solar, battery)
+- ENUM sensors now check API's `availableValues` for dynamic option lists
+- Added capability mappings for connectivity.cellular and connectivity.wifi
+- Added attribute mapping for firmwareVersion
+
 ## [1.0.13] - 2025-10-01
 
 ### Fixed
