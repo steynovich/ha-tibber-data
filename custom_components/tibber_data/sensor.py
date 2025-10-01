@@ -61,12 +61,22 @@ async def async_setup_entry(
 
                 # Create sensor for string/numeric attributes
                 if isinstance(attribute_value, (str, int, float)):
+                    attribute_path = attribute["name"]
+
+                    # Check for custom display name in mappings first
+                    mapping = ATTRIBUTE_MAPPINGS.get(attribute_path, {})
+                    display_name = mapping.get("name_suffix")
+
+                    # Fall back to API displayName or attribute name
+                    if not display_name:
+                        display_name = attribute.get("displayName", attribute_path)
+
                     entities.append(
                         TibberDataAttributeSensor(
                             coordinator=coordinator,
                             device_id=device_id,
-                            attribute_path=attribute["name"],
-                            attribute_name=attribute.get("displayName", attribute["name"])
+                            attribute_path=attribute_path,
+                            attribute_name=display_name
                         )
                     )
 

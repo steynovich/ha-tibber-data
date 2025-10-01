@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.13] - 2025-10-01
+
+### Fixed
+- **Attribute Sensor Display Names**: Fixed display names for attribute sensors to use custom mappings
+  - Serial number now displays as "Serial Number" instead of "Serialnumber"
+  - VIN number displays as "VIN Number"
+  - Custom mappings in ATTRIBUTE_MAPPINGS now take precedence over API displayName
+
 ## [1.0.12] - 2025-10-01
 
 ### Added
