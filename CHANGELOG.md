@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.15] - 2025-10-01
+
+### Fixed
+- **ENUM Sensor Value Formatting**: Fixed title case formatting for all string sensor values
+  - Now applies `.title()` to all string values, not just when device_class is explicitly ENUM
+  - Ensures connectivity sensors (wifi, cellular) show "Connected" instead of "connected"
+  - More robust handling when entity description device_class is not set during initialization
+
+### Technical
+- Improved `native_value` property to handle string formatting even when device_class is None
+- Fallback logic ensures all string sensor values get proper title case formatting
+
 ## [1.0.14] - 2025-10-01
 
 ### Fixed

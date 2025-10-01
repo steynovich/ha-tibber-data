@@ -202,9 +202,15 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
         value = capability_data.get("value")
         unit = capability_data.get("unit", "")
 
-        # Apply title case to string values for ENUM sensors
-        if isinstance(value, str) and self.entity_description.device_class == SensorDeviceClass.ENUM:
-            return value.title()
+        # Apply title case to string values (for ENUM sensors)
+        if isinstance(value, str):
+            # Check if this is an ENUM sensor by checking device class or inferring from string value
+            is_enum = (
+                self.entity_description.device_class == SensorDeviceClass.ENUM or
+                (self.entity_description.device_class is None and isinstance(value, str))
+            )
+            if is_enum:
+                return value.title()
 
         # Convert meters to kilometers for range/distance sensors
         if isinstance(value, (int, float)) and unit == "m" and "range" in self._capability_name.lower():
