@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.16] - 2025-10-02
+
+### Fixed
+- **Dynamic Sensor Properties**: Fixed Home Assistant error where ENUM sensors were incorrectly assigned numeric state classes
+  - `device_class`, `state_class`, and `native_unit_of_measurement` are now determined dynamically at runtime
+  - Prevents errors like "could not convert string to float: 'connected'" for string-valued sensors
+  - Critical fix for EV connector status and charging status sensors
+  - All sensor properties now wait for coordinator data before determining types
+
+### Technical
+- Made `device_class` a dynamic property instead of static entity description value
+- Made `state_class` a dynamic property that evaluates when data is available
+- ENUM sensors (string values) correctly get `device_class=ENUM` and `state_class=None`
+- Numeric sensors get appropriate state classes (MEASUREMENT, TOTAL, TOTAL_INCREASING)
+- Properties gracefully handle initialization when coordinator data is not yet available
+- All tests pass with dynamic property implementation
+- Full mypy and ruff compliance maintained
+
 ## [1.0.15] - 2025-10-01
 
 ### Fixed

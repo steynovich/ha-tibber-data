@@ -97,6 +97,7 @@ pytest tests/test_coordinator.py # Test data coordinator
 - 2025-10-01: Added attribute sensors for non-boolean device attributes (VIN number, serial numbers, etc.)
 - 2025-10-01: Dynamic energy flow sensor naming - automatically formats confusing energy flow capability names into readable display names
 - 2025-10-01: Fixed ENUM sensor value formatting to ensure consistent title case for all string sensor values
+- 2025-10-02: Fixed dynamic sensor properties - device_class and state_class now determined at runtime to prevent ENUM sensor errors
 
 ## EV Support Features
 
