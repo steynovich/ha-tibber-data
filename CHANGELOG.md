@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.17] - 2025-10-02
+
+### Fixed
+- **Integration Entry Loop Prevention**: Fixed issue where failed initial data fetch could cause integration setup to proceed anyway
+  - Setup now properly fails if `async_config_entry_first_refresh()` raises an exception
+  - Prevents multiple duplicate integration entries from being created
+  - Ensures clean error handling during OAuth or API failures
+
+### Technical
+- Removed try-catch wrapper around `async_config_entry_first_refresh()` in `async_setup_entry()`
+- Home Assistant will now properly handle setup failures and trigger reauth when needed
+- Prevents entry creation loops when API or authentication issues occur
+
 ## [1.0.16] - 2025-10-02
 
 ### Fixed

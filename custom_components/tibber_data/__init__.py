@@ -57,12 +57,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     }
 
     # Fetch initial data
-    try:
-        await coordinator.async_config_entry_first_refresh()
-    except Exception as err:
-        _LOGGER.error("Failed to fetch initial data: %s", err)
-        # Still proceed with setup - coordinator will retry
-        pass
+    await coordinator.async_config_entry_first_refresh()
 
     # Register devices in device registry first (before platforms)
     # This ensures hub devices exist before entities try to reference them
