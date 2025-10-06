@@ -57,17 +57,47 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             # Ensure token is valid (will refresh if needed)
             await self.oauth_session.async_ensure_token_valid()
         except Exception as err:
-            _LOGGER.warning("Cannot refresh token - client ID not available, triggering reauth")
-            _LOGGER.error("Failed to refresh token: %s", err)
-            # Trigger reauth flow
-            self.hass.async_create_task(
-                self.hass.config_entries.flow.async_init(
-                    DOMAIN,
-                    context={"source": "reauth", "entry_id": self.config_entry.entry_id},
-                    data=self.config_entry.data,
-                )
+            error_str = str(err).lower()
+
+            # Check if this is an authentication error that requires reauth
+            is_auth_error = (
+                "401" in error_str
+                or "unauthorized" in error_str
+                or "invalid token" in error_str
+                or "expired token" in error_str
+                or "invalid_grant" in error_str
+                or "reauthentication required" in error_str
             )
-            raise UpdateFailed(f"Token refresh failed: {err}") from err
+
+            # Check if this is a transient network error
+            is_network_error = (
+                "timeout" in error_str
+                or "cannot connect" in error_str
+                or "connection" in error_str
+                or "dns" in error_str
+                or "network" in error_str
+            )
+
+            if is_auth_error:
+                _LOGGER.warning("Token refresh failed - authentication required, triggering reauth")
+                _LOGGER.error("Authentication error: %s", err)
+                # Trigger reauth flow only for authentication errors
+                self.hass.async_create_task(
+                    self.hass.config_entries.flow.async_init(
+                        DOMAIN,
+                        context={"source": "reauth", "entry_id": self.config_entry.entry_id},
+                        data=self.config_entry.data,
+                    )
+                )
+                raise UpdateFailed(f"Authentication failed: {err}") from err
+            elif is_network_error:
+                # For transient network errors, just log and fail - coordinator will retry
+                _LOGGER.warning("Token refresh failed due to network error (will retry): %s", err)
+                raise UpdateFailed(f"Network error during token refresh: {err}") from err
+            else:
+                # Unknown error - log it but don't trigger reauth
+                _LOGGER.error("Unexpected error during token refresh: %s", err)
+                raise UpdateFailed(f"Token refresh failed: {err}") from err
 
         # Get the token from OAuth2Session
         token = self.oauth_session.token

@@ -146,12 +146,32 @@ class TestTibberDataCoordinator:
         assert data["homes"] == {}
         assert data["devices"] == {}
 
-    @pytest.mark.skip(reason="Complex reauth flow testing - covered by manual testing")
-    async def test_token_refresh_failure_triggers_reauth(self, hass: HomeAssistant, mock_client):
-        """Test that token refresh failures trigger reauth flow."""
-        # This test validates that coordinator.py:56-64 correctly catches token refresh
-        # failures and triggers the reauth flow via config_entry.async_start_reauth()
-        pass
+    @pytest.mark.asyncio
+    async def test_token_refresh_network_error_no_reauth(self, coordinator, mock_client, mock_oauth_session):
+        """Test that network errors during token refresh don't trigger reauth."""
+        # Simulate DNS timeout during token refresh
+        mock_oauth_session.async_ensure_token_valid.side_effect = Exception(
+            "Cannot connect to host thewall.tibber.com:443 ssl:default [Timeout while contacting DNS servers]"
+        )
+
+        # Should raise UpdateFailed but NOT trigger reauth flow
+        with pytest.raises(UpdateFailed, match="Network error during token refresh"):
+            await coordinator._async_update_data()
+
+    @pytest.mark.asyncio
+    async def test_token_refresh_auth_error_triggers_reauth(self, coordinator, mock_client, mock_oauth_session, hass):
+        """Test that authentication errors during token refresh trigger reauth flow."""
+        # Simulate authentication error during token refresh
+        mock_oauth_session.async_ensure_token_valid.side_effect = Exception(
+            "401 Unauthorized - invalid_grant"
+        )
+
+        # Should raise UpdateFailed and trigger reauth flow
+        with pytest.raises(UpdateFailed, match="Authentication failed"):
+            await coordinator._async_update_data()
+
+        # Note: Verifying reauth flow was triggered requires checking hass.config_entries.flow
+        # which is complex in unit tests, so we just verify the error is raised correctly
 
     @pytest.mark.asyncio
     async def test_api_unavailable_handling(self, coordinator, mock_client):
