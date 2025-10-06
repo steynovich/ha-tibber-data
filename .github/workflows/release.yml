@@ -9,10 +9,14 @@ jobs:
     name: Prepare release
     runs-on: ubuntu-latest
     steps:
-      - name: Download zip file
-        uses: actions/download-artifact@v4
-        with:
-          name: tibber_data
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create zip file
+        run: |
+          cd custom_components
+          zip -r tibber_data.zip tibber_data/
+          mv tibber_data.zip ..
 
       - name: Upload zip file to release
         uses: svenstaro/upload-release-action@v2
