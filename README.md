@@ -206,13 +206,14 @@ automation:
 
 #### "Token expired" or authentication stops working after some time
 - **Automatic Token Refresh**: The integration automatically refreshes expired tokens
-- **Reauth Flow**: If token refresh fails, you'll receive a notification to re-authenticate
+- **Reauth Flow**: If token refresh fails (e.g., due to network issues), you'll receive a notification to re-authenticate
   - Go to **Settings** → **Devices & Services** → **Tibber Data**
   - Click "Configure" or the notification banner
   - Complete the authentication flow again
 - **If reauth doesn't trigger automatically**:
   1. Try reloading the integration
   2. If issues persist, remove and re-add the integration
+- **Network Issues**: The integration gracefully handles DNS timeouts and network failures during token refresh
 
 #### "Cannot connect to Tibber Data API"
 - Check your internet connection

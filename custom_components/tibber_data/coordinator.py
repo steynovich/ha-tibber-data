@@ -60,7 +60,13 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             _LOGGER.warning("Cannot refresh token - client ID not available, triggering reauth")
             _LOGGER.error("Failed to refresh token: %s", err)
             # Trigger reauth flow
-            self.config_entry.async_start_reauth(self.hass)
+            self.hass.async_create_task(
+                self.hass.config_entries.flow.async_init(
+                    DOMAIN,
+                    context={"source": "reauth", "entry_id": self.config_entry.entry_id},
+                    data=self.config_entry.data,
+                )
+            )
             raise UpdateFailed(f"Token refresh failed: {err}") from err
 
         # Get the token from OAuth2Session
