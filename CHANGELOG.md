@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.19] - 2025-10-06
+
+### Fixed
+- **Network Error Handling**: DNS timeouts and transient network errors no longer trigger unnecessary reauthentication
+  - Token refresh now distinguishes between network errors (DNS, timeouts, connection issues) and authentication failures
+  - Network errors raise `UpdateFailed` and allow automatic retry on next update cycle
+  - Authentication errors (401, invalid tokens, expired refresh tokens) still properly trigger reauth flow
+  - Prevents frustrating scenario where temporary DNS issues force users to re-authenticate with valid tokens
+
+### Technical
+- Enhanced error categorization in `coordinator._get_access_token()` to identify error types
+- Network errors: timeout, DNS, connection failures → retry without reauth
+- Auth errors: 401, unauthorized, invalid_grant, expired tokens → trigger reauth
+- Added comprehensive test coverage for both error scenarios
+- Follows defensive error handling pattern with conservative defaults
+
 ## [1.0.18] - 2025-10-06
 
 ### Fixed
