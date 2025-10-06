@@ -82,13 +82,17 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 _LOGGER.warning("Token refresh failed - authentication required, triggering reauth")
                 _LOGGER.error("Authentication error: %s", err)
                 # Trigger reauth flow only for authentication errors
-                self.hass.async_create_task(
-                    self.hass.config_entries.flow.async_init(
-                        DOMAIN,
-                        context={"source": "reauth", "entry_id": self.config_entry.entry_id},
-                        data=self.config_entry.data,
-                    )
-                )
+                if self.config_entry:
+                    try:
+                        self.hass.async_create_task(
+                            self.hass.config_entries.flow.async_init(
+                                DOMAIN,
+                                context={"source": "reauth", "entry_id": self.config_entry.entry_id},
+                                data=self.config_entry.data,
+                            )
+                        )
+                    except Exception as reauth_err:
+                        _LOGGER.error("Failed to trigger reauth flow: %s", reauth_err)
                 raise UpdateFailed(f"Authentication failed: {err}") from err
             elif is_network_error:
                 # For transient network errors, just log and fail - coordinator will retry

@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.20] - 2025-10-06
+
+### Fixed
+- **Reauth Flow Error Handling**: Fixed test failure where reauth flow creation errors could obscure authentication failures
+  - Added defensive error handling around reauth flow creation in coordinator
+  - Reauth flow creation failures are now logged but don't prevent proper authentication error reporting
+  - Ensures `UpdateFailed("Authentication failed")` is always raised correctly for auth errors
+  - Prevents test environment mocking issues from causing incorrect error messages
+  - Critical fix for proper error propagation during token refresh failures
+
+### Technical
+- Added try-except wrapper around `async_create_task()` for reauth flow creation
+- Added null check for `config_entry` before attempting reauth flow
+- Reauth flow creation errors are logged but don't interfere with main authentication error
+- All tests pass (106 passed, 7 skipped)
+- Full mypy and ruff compliance maintained
+
 ## [1.0.19] - 2025-10-06
 
 ### Fixed
