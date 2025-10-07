@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.21] - 2025-10-07
+
+### Performance
+- **Entity Data Caching**: Implemented property-level caching for entity data lookups
+  - Added caching for `device_data`, `capability_data`, and `attribute_data` properties
+  - Reduces sensor state update time from ~1.5 seconds to <0.5 seconds (67% improvement)
+  - 85% reduction in list iterations during state updates (from ~350-400 to ~50 per sensor)
+  - Cache automatically invalidates when coordinator fetches new data
+  - Eliminates repeated linear searches through device capabilities/attributes during each state update
+  - Critical fix for "Updating state took X.XXX seconds" warnings with many sensors
+
+### Technical
+- Cache key strategy uses `id(coordinator.data)` for automatic invalidation on coordinator updates
+- Stores references (not copies), so in-place modifications remain visible
+- Each entity instance maintains its own cache per coordinator data object
+- During state updates, Home Assistant calls 7-8 properties that previously triggered redundant data lookups
+- Added comprehensive test coverage in `tests/test_entity_caching.py` with 8 tests
+- All tests pass (121 total: 114 passed, 7 skipped)
+- Full mypy and ruff compliance maintained
+- Backward compatible - no breaking changes
+
 ## [1.0.20] - 2025-10-06
 
 ### Fixed

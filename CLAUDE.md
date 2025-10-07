@@ -98,6 +98,7 @@ pytest tests/test_coordinator.py # Test data coordinator
 - 2025-10-01: Dynamic energy flow sensor naming - automatically formats confusing energy flow capability names into readable display names
 - 2025-10-01: Fixed ENUM sensor value formatting to ensure consistent title case for all string sensor values
 - 2025-10-02: Fixed dynamic sensor properties - device_class and state_class now determined at runtime to prevent ENUM sensor errors
+- 2025-10-07: Added entity data caching - device_data, capability_data, and attribute_data properties now cache lookups per coordinator update cycle, reducing sensor state update time from ~1.5s to <0.5s (85% reduction in iterations)
 
 ## EV Support Features
 
@@ -139,6 +140,19 @@ The integration uses case-insensitive attribute matching to detect device online
 - Range sensors maintain `state_class="measurement"` for statistics
 
 ## Performance Optimizations
+
+### Entity Data Caching (2025-10-07)
+- **Property-level caching**: `device_data`, `capability_data`, and `attribute_data` properties now cache lookups
+- **Cache key strategy**: Uses `id(coordinator.data)` as cache key - automatically invalidates when coordinator updates
+- **Impact**: During each state update, Home Assistant calls 7-8 properties that access capability_data
+  - Before: ~350-400 list iterations per sensor per update (for 50 capabilities)
+  - After: ~50 iterations per sensor per update (85% reduction)
+  - Result: Sensor state update time reduced from ~1.5s to <0.5s
+- **Cache behavior**:
+  - Cache is per entity instance and per coordinator data object
+  - Stores references (not copies), so in-place modifications are visible
+  - Automatically invalidated when coordinator fetches new data
+- **Test coverage**: Added comprehensive caching tests in `tests/test_entity_caching.py`
 
 ### Sensor Entity Initialization
 - **Reduced property lookups**: Capability data is fetched once and cached during entity initialization

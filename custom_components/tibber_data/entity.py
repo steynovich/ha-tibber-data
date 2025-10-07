@@ -24,14 +24,25 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
         super().__init__(coordinator)
         self._device_id = device_id
         self._entity_name_suffix = entity_name_suffix
+        self._cached_device_data: Optional[Dict[str, Any]] = None
+        self._device_cache_coordinator_update: Optional[Any] = None
 
     @property
     def device_data(self) -> Optional[Dict[str, Any]]:
-        """Get device data from coordinator."""
+        """Get device data from coordinator with caching."""
+        # Check if cache is valid for current coordinator data (use data object id as cache key)
+        current_data_id = id(self.coordinator.data)
+        if self._device_cache_coordinator_update == current_data_id:
+            return self._cached_device_data
+
+        # Cache miss - fetch and cache the data
         if not self.coordinator.data or "devices" not in self.coordinator.data:
-            return None
-        device_data: Optional[Dict[str, Any]] = self.coordinator.data["devices"].get(self._device_id)
-        return device_data
+            self._cached_device_data = None
+        else:
+            self._cached_device_data = self.coordinator.data["devices"].get(self._device_id)
+
+        self._device_cache_coordinator_update = current_data_id
+        return self._cached_device_data
 
     @property
     def home_data(self) -> Optional[Dict[str, Any]]:
@@ -310,12 +321,22 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
     ) -> None:
         """Initialize capability entity."""
         self._capability_name = capability_name
+        self._cached_capability_data: Optional[Dict[str, Any]] = None
+        self._cache_coordinator_update: Optional[Any] = None
         super().__init__(coordinator, device_id, capability_name)
 
     @property
     def capability_data(self) -> Optional[Dict[str, Any]]:
-        """Get capability data."""
-        return self._get_capability_data(self._capability_name)
+        """Get capability data with caching per coordinator update."""
+        # Check if cache is valid for current coordinator data (use data object id as cache key)
+        current_data_id = id(self.coordinator.data)
+        if self._cache_coordinator_update == current_data_id:
+            return self._cached_capability_data
+
+        # Cache miss - fetch and cache the data
+        self._cached_capability_data = self._get_capability_data(self._capability_name)
+        self._cache_coordinator_update = current_data_id
+        return self._cached_capability_data
 
     @property
     def name(self) -> str:
@@ -477,12 +498,22 @@ class TibberDataAttributeEntity(TibberDataDeviceEntity):
     ) -> None:
         """Initialize attribute entity."""
         self._attribute_path = attribute_path
+        self._cached_attribute_data: Optional[Dict[str, Any]] = None
+        self._attribute_cache_coordinator_update: Optional[Any] = None
         super().__init__(coordinator, device_id, attribute_name)
 
     @property
     def attribute_data(self) -> Optional[Dict[str, Any]]:
-        """Get attribute data."""
-        return self._get_attribute_data(self._attribute_path)
+        """Get attribute data with caching per coordinator update."""
+        # Check if cache is valid for current coordinator data (use data object id as cache key)
+        current_data_id = id(self.coordinator.data)
+        if self._attribute_cache_coordinator_update == current_data_id:
+            return self._cached_attribute_data
+
+        # Cache miss - fetch and cache the data
+        self._cached_attribute_data = self._get_attribute_data(self._attribute_path)
+        self._attribute_cache_coordinator_update = current_data_id
+        return self._cached_attribute_data
 
     @property
     def unique_id(self) -> str:
