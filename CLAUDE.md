@@ -101,6 +101,7 @@ pytest tests/test_coordinator.py # Test data coordinator
 - 2025-10-07: Added entity data caching - device_data, capability_data, and attribute_data properties now cache lookups per coordinator update cycle, reducing sensor state update time from ~1.5s to <0.5s (85% reduction in iterations)
 - 2025-10-08: Comprehensive energy flow sensor naming improvements - all battery, solar, grid, and load sensors now have unique meaningful names across all time periods (hour, day, week, month, year)
 - 2025-10-08: Fixed "no_name" entity ID prefix issue - case-insensitive handling of invalid device names with proper fallback to manufacturer/model
+- 2025-10-08: Fixed battery device class detection - only percentage sensors with battery/storage-related keywords get battery device class, preventing power flow percentages from being incorrectly identified as battery sensors
 
 ## EV Support Features
 

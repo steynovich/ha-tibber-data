@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.26] - 2025-10-08
+
+### Fixed
+- **Battery Device Class Detection**: Fixed incorrect battery percentage display in Home Assistant device cards
+  - Only percentage sensors with battery/storage-related keywords now get battery device class
+  - Prevents power flow percentages (e.g., `powerFlow.fromSolar` at 0.9%) from being identified as battery sensors
+  - Device cards now correctly show actual battery level (e.g., `storage.stateOfCharge` at 95.5%)
+  - Power flow percentage sensors (`powerFlow.toGrid`, `powerFlow.fromSolar`, etc.) no longer have device class
+  - Battery/storage sensors (`storage.stateOfCharge`, `battery.level`, etc.) correctly get battery device class
+
+### Technical
+- Enhanced `_infer_device_class_from_value_and_unit()` with keyword-based filtering for percentage sensors
+- Keywords checked: `battery`, `storage`, `stateofcharge`, `charge`
+- Percentage sensors without these keywords get no device class instead of battery
+- Added comprehensive test coverage for both power flow percentages and battery percentages
+- All existing power/energy/temperature sensors retain their correct device classes
+- All tests pass (116 passed, 7 skipped)
+
 ## [1.0.25] - 2025-10-08
 
 ### Fixed

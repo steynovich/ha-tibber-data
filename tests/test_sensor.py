@@ -394,3 +394,171 @@ class TestTibberDataSensor:
 
         assert target_sensor.native_value == 80
         assert target_sensor.native_unit_of_measurement == "%"
+
+    async def test_powerflow_percentage_not_battery(self, hass, mock_coordinator):
+        """Test that power flow percentage sensors don't get battery device class."""
+        from unittest.mock import patch
+
+        # Simulate a home battery with power flow percentages
+        with patch.object(
+            mock_coordinator,
+            'data',
+            {
+                "homes": {
+                    "home-123": {"id": "home-123", "displayName": "My Home"}
+                },
+                "devices": {
+                    "device-123": {
+                        "id": "device-123",
+                        "name": "Homevolt Battery",
+                        "manufacturer": "Homevolt",
+                        "model": "TEG06",
+                        "home_id": "home-123",
+                        "online": True,
+                        "capabilities": [
+                            {
+                                "name": "storage.stateOfCharge",
+                                "displayName": "State of Charge",
+                                "value": 95.5,
+                                "unit": "%",
+                                "lastUpdated": "2025-10-08T17:09:37Z"
+                            },
+                            {
+                                "name": "powerFlow.fromSolar",
+                                "displayName": "Power Flow From Solar",
+                                "value": 0.9,
+                                "unit": "%",
+                                "lastUpdated": "2025-10-08T17:09:37Z"
+                            },
+                            {
+                                "name": "powerFlow.fromGrid",
+                                "displayName": "Power Flow From Grid",
+                                "value": 0.1,
+                                "unit": "%",
+                                "lastUpdated": "2025-10-08T17:09:37Z"
+                            }
+                        ],
+                        "attributes": []
+                    }
+                }
+            }
+        ):
+            # Test storage.stateOfCharge - should be battery device class
+            battery_sensor = TibberDataCapabilitySensor(
+                coordinator=mock_coordinator,
+                device_id="device-123",
+                capability_name="storage.stateOfCharge"
+            )
+
+            assert battery_sensor.native_value == 95.5
+            assert battery_sensor.native_unit_of_measurement == "%"
+            assert battery_sensor.device_class == "battery"
+            assert battery_sensor.state_class == "measurement"
+
+            # Test powerFlow.fromSolar - should NOT be battery device class
+            solar_flow_sensor = TibberDataCapabilitySensor(
+                coordinator=mock_coordinator,
+                device_id="device-123",
+                capability_name="powerFlow.fromSolar"
+            )
+
+            assert solar_flow_sensor.native_value == 0.9
+            assert solar_flow_sensor.native_unit_of_measurement == "%"
+            assert solar_flow_sensor.device_class is None  # No device class for power flow %
+            assert solar_flow_sensor.state_class == "measurement"
+
+            # Test powerFlow.fromGrid - should NOT be battery device class
+            grid_flow_sensor = TibberDataCapabilitySensor(
+                coordinator=mock_coordinator,
+                device_id="device-123",
+                capability_name="powerFlow.fromGrid"
+            )
+
+            assert grid_flow_sensor.native_value == 0.1
+            assert grid_flow_sensor.native_unit_of_measurement == "%"
+            assert grid_flow_sensor.device_class is None  # No device class for power flow %
+            assert grid_flow_sensor.state_class == "measurement"
+
+    async def test_powerflow_power_sensors_have_device_class(self, hass, mock_coordinator):
+        """Test that power flow power sensors (W) get correct device class."""
+        from unittest.mock import patch
+
+        # Simulate power flow sensors with W unit
+        with patch.object(
+            mock_coordinator,
+            'data',
+            {
+                "homes": {
+                    "home-123": {"id": "home-123", "displayName": "My Home"}
+                },
+                "devices": {
+                    "device-123": {
+                        "id": "device-123",
+                        "name": "Homevolt Battery",
+                        "manufacturer": "Homevolt",
+                        "model": "TEG06",
+                        "home_id": "home-123",
+                        "online": True,
+                        "capabilities": [
+                            {
+                                "name": "powerFlow.solar.power",
+                                "displayName": "Power Flow Solar",
+                                "value": 586.63,
+                                "unit": "W",
+                                "lastUpdated": "2025-10-08T17:09:37Z"
+                            },
+                            {
+                                "name": "powerFlow.battery.power",
+                                "displayName": "Power Flow Battery",
+                                "value": -15,
+                                "unit": "W",
+                                "lastUpdated": "2025-10-08T17:09:37Z"
+                            },
+                            {
+                                "name": "powerFlow.grid.power",
+                                "displayName": "Power Flow Grid",
+                                "value": 65.57,
+                                "unit": "W",
+                                "lastUpdated": "2025-10-08T17:09:37Z"
+                            }
+                        ],
+                        "attributes": []
+                    }
+                }
+            }
+        ):
+            # Test powerFlow.solar.power - should have POWER device class
+            solar_power_sensor = TibberDataCapabilitySensor(
+                coordinator=mock_coordinator,
+                device_id="device-123",
+                capability_name="powerFlow.solar.power"
+            )
+
+            assert solar_power_sensor.native_value == 586.63
+            assert solar_power_sensor.native_unit_of_measurement == "W"
+            assert solar_power_sensor.device_class == "power"
+            assert solar_power_sensor.state_class == "measurement"
+
+            # Test powerFlow.battery.power - should have POWER device class
+            battery_power_sensor = TibberDataCapabilitySensor(
+                coordinator=mock_coordinator,
+                device_id="device-123",
+                capability_name="powerFlow.battery.power"
+            )
+
+            assert battery_power_sensor.native_value == -15
+            assert battery_power_sensor.native_unit_of_measurement == "W"
+            assert battery_power_sensor.device_class == "power"
+            assert battery_power_sensor.state_class == "measurement"
+
+            # Test powerFlow.grid.power - should have POWER device class
+            grid_power_sensor = TibberDataCapabilitySensor(
+                coordinator=mock_coordinator,
+                device_id="device-123",
+                capability_name="powerFlow.grid.power"
+            )
+
+            assert grid_power_sensor.native_value == 65.57
+            assert grid_power_sensor.native_unit_of_measurement == "W"
+            assert grid_power_sensor.device_class == "power"
+            assert grid_power_sensor.state_class == "measurement"

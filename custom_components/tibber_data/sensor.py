@@ -122,8 +122,16 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
         if isinstance(value, str):
             return SensorDeviceClass.ENUM
 
+        # Special handling for percentage sensors
+        if unit == "%":
+            # Only consider it a battery sensor if capability name suggests battery/storage
+            capability_lower = self._capability_name.lower()
+            if any(keyword in capability_lower for keyword in ["battery", "storage", "stateofcharge", "charge"]):
+                return SensorDeviceClass.BATTERY
+            # Otherwise, percentage sensors (like power flow %) should have no device class
+            return None
+
         unit_mappings: dict[str, SensorDeviceClass] = {
-            "%": SensorDeviceClass.BATTERY,
             "kW": SensorDeviceClass.POWER,
             "W": SensorDeviceClass.POWER,
             "kWh": SensorDeviceClass.ENERGY,

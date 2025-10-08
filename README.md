@@ -117,13 +117,15 @@ The integration creates the following types of entities:
 ### Sensors
 
 **Capability Sensors** (from device capabilities):
-- **Battery Level** (%) - For EVs and battery storage systems
+- **Battery Level** (%) - For EVs and battery storage systems (uses battery device class)
 - **Charging Power** (kW) - Current charging/discharging power
+- **Power Flow** (W) - Real-time power flow (solar, battery, grid, load)
+- **Power Flow Percentages** (%) - Power distribution ratios (no device class, for display only)
 - **Temperature** (°C) - For thermostats and heat pumps
 - **Energy Consumption** (kWh) - Total energy consumed
 - **Solar Production** (kWh) - Total solar energy produced
 - **Charging Current** (A) - Current draw during charging
-- **Signal Strength** (%) - Device connectivity strength
+- **Signal Strength** (dBm) - Device connectivity strength
 - **Charging Status** (ENUM) - Vehicle charging status (Idle/Charging/Complete/Error/Unknown)
 - **Connector Status** (ENUM) - Vehicle plug status (Connected/Disconnected/Unknown)
 - **Cellular Connectivity** (ENUM) - Cellular connection status
@@ -241,6 +243,17 @@ automation:
   - `data-api-vehicles-read`, `data-api-chargers-read`, `data-api-thermostats-read`
   - `data-api-energy-systems-read`, `data-api-inverters-read`
 - Try reloading the integration
+
+### Battery Level Showing Wrong Value
+
+If your device's battery level is showing an incorrect percentage (e.g., 0.9% instead of 95.5%):
+
+- **Cause**: Home Assistant device cards automatically select a battery sensor based on device class
+- **Recent Fix (v1.0.26+)**: The integration now only assigns battery device class to percentage sensors with battery/storage-related keywords
+  - ✅ `storage.stateOfCharge`, `battery.level`, `storage.capacity` → Battery device class
+  - ❌ `powerFlow.fromSolar`, `powerFlow.toGrid` → No device class (not battery sensors)
+- **Solution**: Restart Home Assistant after updating to ensure the fix takes effect
+- **Note**: Power flow percentage sensors represent power distribution ratios, not battery levels
 
 ### Debug Logging
 
