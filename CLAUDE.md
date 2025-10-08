@@ -103,6 +103,7 @@ pytest tests/test_coordinator.py # Test data coordinator
 - 2025-10-08: Fixed "no_name" entity ID prefix issue - case-insensitive handling of invalid device names with proper fallback to manufacturer/model
 - 2025-10-08: Fixed battery device class detection - only percentage sensors with battery/storage-related keywords get battery device class, preventing power flow percentages from being incorrectly identified as battery sensors
 - 2025-10-08: Fixed entity availability during temporary failures - entities now remain available with cached data when coordinator updates fail temporarily (network issues, API timeouts), only becoming unavailable when device is actually offline
+- 2025-10-08: Fixed periodic energy flow sensors becoming unavailable at period boundaries - hourly/daily/weekly/monthly sensors now use TOTAL state class instead of TOTAL_INCREASING, preventing unavailability when values reset to 0
 
 ## EV Support Features
 

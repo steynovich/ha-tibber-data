@@ -562,3 +562,108 @@ class TestTibberDataSensor:
             assert grid_power_sensor.native_unit_of_measurement == "W"
             assert grid_power_sensor.device_class == "power"
             assert grid_power_sensor.state_class == "measurement"
+
+    async def test_all_energy_sensors_use_total_state_class(self, hass, mock_coordinator):
+        """Test that all energy sensors use TOTAL state class (all Tibber sensors are periodic or storage)."""
+        from unittest.mock import patch
+
+        # Simulate various energy sensors - all should use TOTAL (never TOTAL_INCREASING)
+        with patch.object(
+            mock_coordinator,
+            'data',
+            {
+                "homes": {
+                    "home-123": {"id": "home-123", "displayName": "My Home"}
+                },
+                "devices": {
+                    "device-123": {
+                        "id": "device-123",
+                        "name": "Homevolt Battery",
+                        "manufacturer": "Homevolt",
+                        "model": "TEG06",
+                        "home_id": "home-123",
+                        "online": True,
+                        "capabilities": [
+                            {
+                                "name": "energyFlow.hour.battery.charged",
+                                "displayName": "Battery Charged (Hour)",
+                                "value": 2,
+                                "unit": "Wh",
+                                "lastUpdated": "2025-10-08T17:09:37Z"
+                            },
+                            {
+                                "name": "energyFlow.hour.grid.imported",
+                                "displayName": "Grid Imported (Hour)",
+                                "value": 113,
+                                "unit": "Wh",
+                                "lastUpdated": "2025-10-08T17:09:37Z"
+                            },
+                            {
+                                "name": "energyFlow.day.solar.produced",
+                                "displayName": "Solar Produced (Day)",
+                                "value": 5870,
+                                "unit": "Wh",
+                                "lastUpdated": "2025-10-08T17:09:37Z"
+                            },
+                            {
+                                "name": "energyFlow.week.load.consumed",
+                                "displayName": "Load Consumed (Week)",
+                                "value": 51463,
+                                "unit": "Wh",
+                                "lastUpdated": "2025-10-08T17:09:37Z"
+                            },
+                            {
+                                "name": "energyFlow.month.grid.exported",
+                                "displayName": "Grid Exported (Month)",
+                                "value": 220125,
+                                "unit": "Wh",
+                                "lastUpdated": "2025-10-08T17:09:37Z"
+                            }
+                        ],
+                        "attributes": []
+                    }
+                }
+            }
+        ):
+            # Test hourly energy flow sensor
+            hour_sensor = TibberDataCapabilitySensor(
+                coordinator=mock_coordinator,
+                device_id="device-123",
+                capability_name="energyFlow.hour.battery.charged"
+            )
+            assert hour_sensor.native_value == 2
+            assert hour_sensor.native_unit_of_measurement == "Wh"
+            assert hour_sensor.device_class == "energy"
+            assert hour_sensor.state_class == "total"  # Should be TOTAL, not TOTAL_INCREASING
+
+            # Test daily energy flow sensor
+            day_sensor = TibberDataCapabilitySensor(
+                coordinator=mock_coordinator,
+                device_id="device-123",
+                capability_name="energyFlow.day.solar.produced"
+            )
+            assert day_sensor.state_class == "total"
+
+            # Test weekly energy flow sensor
+            week_sensor = TibberDataCapabilitySensor(
+                coordinator=mock_coordinator,
+                device_id="device-123",
+                capability_name="energyFlow.week.load.consumed"
+            )
+            assert week_sensor.state_class == "total"
+
+            # Test monthly energy flow sensor with "exported" keyword
+            month_sensor = TibberDataCapabilitySensor(
+                coordinator=mock_coordinator,
+                device_id="device-123",
+                capability_name="energyFlow.month.grid.exported"
+            )
+            assert month_sensor.state_class == "total"
+
+            # Test grid imported sensor (previously would have been TOTAL_INCREASING)
+            imported_sensor = TibberDataCapabilitySensor(
+                coordinator=mock_coordinator,
+                device_id="device-123",
+                capability_name="energyFlow.hour.grid.imported"
+            )
+            assert imported_sensor.state_class == "total"  # Now TOTAL for all energy sensors

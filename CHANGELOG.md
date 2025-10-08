@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.28] - 2025-10-08
+
+### Fixed
+- **All Energy Sensors State Class**: Fixed all energy sensors (kWh/Wh) becoming unavailable when values reset
+  - ALL energy sensors now use `TOTAL` state class instead of `TOTAL_INCREASING`
+  - Prevents Home Assistant from marking sensors unavailable when periodic values reset to 0
+  - Affects all energy sensors: hourly/daily/weekly/monthly energy flow sensors AND storage sensors
+  - All Tibber Data API energy sensors are either periodic (reset at boundaries) or storage (can fluctuate)
+  - None are lifetime cumulative counters, so `TOTAL_INCREASING` was inappropriate for all of them
+  - Examples: `energyFlow.hour.battery.charged`, `energyFlow.day.grid.imported`, `storage.availableEnergy`
+
+### Migration Required
+- **Existing users must remove and re-add the integration** to update entity state classes
+- Home Assistant caches state class in entity registry - restart alone won't fix existing entities
+- Steps: Remove integration → Re-add → Re-authenticate → Entities recreated with correct state class
+- Statistics history is preserved during this process
+
+### Technical
+- Simplified `_infer_state_class_from_value()` - all energy units (kWh, Wh) now return `SensorStateClass.TOTAL`
+- Removed complex keyword-based logic for consumption/production/storage
+- This allows periodic values to reset and storage values to fluctuate without errors
+- Added comprehensive test coverage including imported/exported sensors that previously used TOTAL_INCREASING
+- All tests pass (118 passed, 7 skipped)
+
 ## [1.0.27] - 2025-10-08
 
 ### Fixed

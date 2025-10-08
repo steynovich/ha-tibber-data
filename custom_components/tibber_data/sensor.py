@@ -151,27 +151,15 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
             # String values and None should not have a state class
             return None
 
-        # Energy units (kWh, Wh) should use appropriate state class based on capability name
+        # Energy units (kWh, Wh) should use TOTAL state class
+        # All Tibber Data API energy sensors are periodic (reset at boundaries) or storage (can fluctuate)
+        # None are lifetime cumulative counters, so TOTAL_INCREASING is not appropriate
         if unit in ["kWh", "Wh"]:
-            # Energy consumption/usage is typically total_increasing
-            if any(keyword in capability_name.lower() for keyword in ["consumption", "usage", "used", "imported"]):
-                return SensorStateClass.TOTAL_INCREASING
-            # Energy storage/capacity is usually total (can go up and down)
-            elif any(keyword in capability_name.lower() for keyword in ["storage", "capacity", "stored", "available"]):
-                return SensorStateClass.TOTAL
-            # Energy production is typically total_increasing
-            elif any(keyword in capability_name.lower() for keyword in ["production", "generated", "exported"]):
-                return SensorStateClass.TOTAL_INCREASING
-            # Default for energy units is total (safest choice)
-            else:
-                return SensorStateClass.TOTAL
+            return SensorStateClass.TOTAL
 
-        # Other energy-related capabilities without energy units
+        # Other energy-related capabilities without energy units also use TOTAL
         if "energy" in capability_name.lower():
-            if "consumption" in capability_name.lower():
-                return SensorStateClass.TOTAL_INCREASING
-            else:
-                return SensorStateClass.TOTAL
+            return SensorStateClass.TOTAL
 
         # Power, temperature, battery level are measurements
         if any(keyword in capability_name.lower() for keyword in ["power", "temperature", "battery", "level", "current", "voltage", "signal"]):
