@@ -466,21 +466,37 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
         source: Optional[str] = None
         time_period: Optional[str] = None
         action: Optional[str] = None
+        metric_type: Optional[str] = None  # Additional metric type (e.g., total, net, available)
 
         destinations = {"load", "grid", "solar", "battery"}
         periods = {"hour", "day", "week", "month", "year", "minute"}
-        actions = {"charged", "discharged", "produced", "consumed", "imported", "exported"}
+        actions = {"charged", "discharged", "produced", "consumed", "imported", "exported", "generated"}
+        metric_types = {"total", "net", "available", "stored", "capacity", "remaining"}
 
-        for part in parts:
+        # Track if we're in a "source" section (e.g., "source.grid")
+        found_source_keyword = False
+
+        for i, part in enumerate(parts):
             part_lower = part.lower()
+
             if part_lower in destinations and not destination:
                 destination = part.title()
-            elif part_lower.startswith("source"):
-                source = part[6:].title()  # Remove "source" prefix
+            elif part_lower == "source":
+                # Mark that we found "source", next destination part is the source
+                found_source_keyword = True
+            elif found_source_keyword and part_lower in destinations:
+                # This is the source destination (e.g., "grid" in "source.grid")
+                source = part.title()
+                found_source_keyword = False
+            elif part_lower.startswith("source") and len(part_lower) > 6:
+                # Handle "sourceGrid" format (without dot)
+                source = part[6:].title()
             elif part_lower in periods:
                 time_period = part.title()
             elif part_lower in actions:
                 action = part.title()
+            elif part_lower in metric_types:
+                metric_type = part.title()
 
         # Fallback if no destination found
         if not destination:
@@ -492,21 +508,25 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
                 "action": lambda a: f"Battery {a}",
                 "source_Battery": "Battery Self-Charge",
                 "source": lambda s: f"Battery from {s}",
+                "metric": lambda m: f"Battery {m}",
                 "default": "Battery Energy"
             },
             "Grid": {
                 "source_Grid": "Grid Import",
                 "source": lambda s: f"Grid from {s}",
+                "metric": lambda m: f"Grid {m}",
                 "default": "Grid Energy"
             },
             "Load": {
                 "source": lambda s: f"Load from {s}",
+                "metric": lambda m: f"Load {m}",
                 "default": "Load Energy"
             },
             "Solar": {
                 "action": lambda a: f"Solar {a}",
                 "source_Solar": "Solar Production",
                 "source": lambda s: f"Solar from {s}",
+                "metric": lambda m: f"Solar {m}",
                 "default": "Solar Energy"
             }
         }
@@ -527,8 +547,26 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
             else:
                 source_func = rules.get("source", lambda s: f"{destination} from {s}")
                 display_name = source_func(source)
+        elif metric_type:
+            metric_func = rules.get("metric", lambda m: f"{destination} {m}")
+            display_name = metric_func(metric_type)
         else:
-            display_name = str(rules.get("default", f"{destination} Energy"))
+            # If no action, source, or metric_type, use the full capability path for uniqueness
+            # Example: battery.energyFlow.day.foo -> "Battery Foo"
+            # Look for any remaining unrecognized parts
+            unrecognized_parts = [
+                p.title() for p in parts
+                if p.lower() not in destinations
+                and p.lower() not in periods
+                and not p.lower().startswith("source")
+                and "energy" not in p.lower()
+                and "flow" not in p.lower()
+            ]
+
+            if unrecognized_parts:
+                display_name = f"{destination} {' '.join(unrecognized_parts)}"
+            else:
+                display_name = str(rules.get("default", f"{destination} Energy"))
 
         # Add time period suffix if present
         if time_period:

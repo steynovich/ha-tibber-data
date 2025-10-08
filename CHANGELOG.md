@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.25] - 2025-10-08
+
+### Fixed
+- **Energy Flow Duplicate Names**: Fixed remaining duplicate sensor names for energy flow capabilities
+  - API uses `source.grid` format (with dot) instead of `sourceGrid` (camelCase)
+  - Updated parser to handle both `energyFlow.day.battery.source.grid` and legacy `sourceGrid` formats
+  - All 70 energy flow capabilities now have unique, descriptive names
+  - Added support for "generated" action (e.g., "Load Generated")
+  - Tested against actual API response data to ensure 100% unique names
+
+### Technical
+- Enhanced source parsing with state tracking for multi-part source notation
+- Handles `source.grid`, `source.solar`, `source.battery`, `source.load` patterns
+- Backward compatible with `sourceGrid` camelCase format
+- Validated against `samples/response.json` with 70 energy flow capabilities
+- All tests pass (114 passed)
+
 ## [1.0.24] - 2025-10-08
 
 ### Changed
