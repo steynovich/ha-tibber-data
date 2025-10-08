@@ -1,0 +1,13 @@
+# Service definitions for Tibber Data integration
+
+refresh:
+  name: Refresh data
+  description: Force an immediate refresh of Tibber Data API data for all devices.
+  fields:
+    config_entry_id:
+      name: Config entry ID
+      description: Optional. The config entry ID to refresh. If not specified, all Tibber Data config entries will be refreshed.
+      example: "01234567890abcdef1234567890abcde"
+      required: false
+      selector:
+        text:

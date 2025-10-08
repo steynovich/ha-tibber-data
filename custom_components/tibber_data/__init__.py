@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+
+import voluptuous as vol
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers import config_entry_oauth2_flow
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.helpers import config_entry_oauth2_flow, config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import async_get as async_get_device_registry, DeviceEntryType
 
@@ -22,6 +25,11 @@ from .const import (
 from .coordinator import TibberDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+SERVICE_REFRESH = "refresh"
+SERVICE_REFRESH_SCHEMA = vol.Schema({
+    vol.Optional("config_entry_id"): cv.string,
+})
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -71,6 +79,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_stop_handler)
     )
 
+    # Register services (only once, for the first config entry)
+    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH):
+        async def async_handle_refresh(call: ServiceCall) -> None:
+            """Handle the refresh service call."""
+            config_entry_id = call.data.get("config_entry_id")
+
+            if config_entry_id:
+                # Refresh specific config entry
+                if config_entry_id in hass.data[DOMAIN]:
+                    coordinator = hass.data[DOMAIN][config_entry_id][DATA_COORDINATOR]
+                    await coordinator.async_request_refresh()
+                    _LOGGER.info("Refreshed Tibber Data for config entry: %s", config_entry_id)
+                else:
+                    _LOGGER.error("Config entry not found: %s", config_entry_id)
+            else:
+                # Refresh all config entries
+                for entry_id, entry_data in hass.data[DOMAIN].items():
+                    coordinator = entry_data[DATA_COORDINATOR]
+                    await coordinator.async_request_refresh()
+                _LOGGER.info("Refreshed all Tibber Data config entries")
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_REFRESH,
+            async_handle_refresh,
+            schema=SERVICE_REFRESH_SCHEMA,
+        )
+
     return True
 
 
@@ -92,6 +128,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator = entry_data.get(DATA_COORDINATOR)
         if coordinator:
             await coordinator.async_close()
+
+        # Remove services if this is the last config entry
+        if not hass.data[DOMAIN]:
+            hass.services.async_remove(DOMAIN, SERVICE_REFRESH)
 
     return unload_ok
 

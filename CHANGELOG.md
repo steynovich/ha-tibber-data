@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.31] - 2025-10-08
+
+### Added
+- **Force Refresh Service**: Added `tibber_data.refresh` service to force immediate data refresh
+  - Can refresh all config entries or a specific config entry by ID
+  - Bypasses normal update interval for on-demand data updates
+  - Useful for automations that need current data before making decisions
+  - Service is registered when first config entry is added
+  - Service is removed when last config entry is unloaded
+
+### Technical
+- Added service registration in `async_setup_entry()` with schema validation
+- Service handler supports optional `config_entry_id` parameter
+- Uses `coordinator.async_request_refresh()` for immediate refresh
+- Created `services.yaml` with service documentation for UI
+- All ruff and mypy checks pass
+- All 125 tests pass
+
 ## [1.0.30] - 2025-10-08
 
 ### Changed

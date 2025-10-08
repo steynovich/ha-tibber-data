@@ -199,6 +199,45 @@ automation:
           temperature: 22
 ```
 
+## Services
+
+### `tibber_data.refresh`
+
+Force an immediate refresh of Tibber Data API data for all devices, bypassing the normal update interval.
+
+**Service Data:**
+- `config_entry_id` (optional): The config entry ID to refresh. If not specified, all Tibber Data config entries will be refreshed.
+
+**Examples:**
+
+Refresh all Tibber Data integrations:
+```yaml
+service: tibber_data.refresh
+```
+
+Refresh a specific config entry:
+```yaml
+service: tibber_data.refresh
+data:
+  config_entry_id: "01234567890abcdef1234567890abcde"
+```
+
+Use in automation to refresh before checking values:
+```yaml
+automation:
+  - alias: "Check EV Battery Before Leaving"
+    trigger:
+      - platform: time
+        at: "07:00:00"
+    action:
+      - service: tibber_data.refresh
+      - delay:
+          seconds: 5
+      - service: notify.mobile_app
+        data:
+          message: "EV battery is at {{ states('sensor.tesla_battery_level') }}%"
+```
+
 ## Troubleshooting
 
 ### Common Issues
