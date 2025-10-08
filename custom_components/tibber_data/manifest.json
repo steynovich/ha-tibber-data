@@ -9,5 +9,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/steynovich/ha-tibber-data/issues",
   "requirements": [],
-  "version": "1.0.28"
+  "version": "1.0.29"
 }

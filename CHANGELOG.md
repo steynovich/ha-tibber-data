@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.29] - 2025-10-08
+
+### Added
+- **Diagnostics Support**: Added comprehensive diagnostics data for troubleshooting
+  - Config entry diagnostics show all homes, devices, coordinator status, and complete API response
+  - Device-specific diagnostics show detailed device data from the API
+  - Automatic redaction of sensitive information (tokens, VINs, serial numbers, emails, phone numbers, addresses, coordinates, user/home IDs)
+  - Accessible via Settings → Devices & Services → Tibber Data → Download diagnostics
+  - Includes last successful API response for debugging integration issues
+  - Helpful for troubleshooting device availability, sensor values, and API communication
+
+### Technical
+- Created `diagnostics.py` with `async_get_config_entry_diagnostics()` and `async_get_device_diagnostics()`
+- Added `"diagnostics": ["config_entry", "device"]` to manifest.json
+- Uses Home Assistant's `async_redact_data()` for secure data sanitization
+- TO_REDACT list covers all common sensitive fields (tokens, identifiers, contact info, location data)
+
 ## [1.0.28] - 2025-10-08
 
 ### Fixed
