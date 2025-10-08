@@ -5,7 +5,7 @@ from typing import Final
 # Integration details
 DOMAIN: Final = "tibber_data"
 INTEGRATION_NAME: Final = "Tibber Data"
-INTEGRATION_VERSION: Final = "1.0.21"
+INTEGRATION_VERSION: Final = "1.0.23"
 
 # Manufacturer information
 MANUFACTURER: Final = "Tibber"
