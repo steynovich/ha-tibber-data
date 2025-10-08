@@ -192,8 +192,17 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
         device_name = device_data.get("name") or ""
         device_name = device_name.strip() if device_name else ""
 
-        # If no name or empty name or is just whitespace or "<no name>", use "Brand Model" format
-        if not device_name or device_name == "<no name>":
+        # Check if device name is invalid (empty, whitespace, or variations of "no name")
+        # Handle case-insensitive variations: "no name", "No name", "<no name>", etc.
+        device_name_lower = device_name.lower()
+        is_invalid_name = (
+            not device_name or
+            device_name_lower == "no name" or
+            device_name_lower == "<no name>" or
+            device_name_lower.strip("<>") == "no name"
+        )
+
+        if is_invalid_name:
             manufacturer = device_data.get("manufacturer", "Unknown")
             model = device_data.get("model", "Device")
             # Build a cleaner device name
@@ -415,9 +424,27 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
         """Format energy flow capability names dynamically.
 
         Examples:
-            load.energyFlow.sourceBattery.hour -> Load Energy from Battery (Hour)
-            grid.energyFlow.sourceGrid.hour -> Grid Import Energy (Hour)
-            grid.energyFlow.sourceBattery.hour -> Grid Export Energy from Battery (Hour)
+            Battery flows:
+                battery.energyFlow.day.charged -> Battery Charged (Day)
+                battery.energyFlow.day.discharged -> Battery Discharged (Day)
+                battery.energyFlow.day.sourceGrid -> Battery from Grid (Day)
+                battery.energyFlow.day.sourceLoad -> Battery from Load (Day)
+                battery.energyFlow.day.sourceSolar -> Battery from Solar (Day)
+
+            Grid flows:
+                grid.energyFlow.day.sourceGrid -> Grid Import (Day)
+                grid.energyFlow.day.sourceBattery -> Grid from Battery (Day)
+                grid.energyFlow.day.sourceSolar -> Grid from Solar (Day)
+
+            Load flows:
+                load.energyFlow.day.sourceBattery -> Load from Battery (Day)
+                load.energyFlow.day.sourceGrid -> Load from Grid (Day)
+                load.energyFlow.day.sourceSolar -> Load from Solar (Day)
+
+            Solar flows:
+                solar.energyFlow.day.produced -> Solar Produced (Day)
+                solar.energyFlow.day.consumed -> Solar Consumed (Day)
+                solar.energyFlow.day.sourceSolar -> Solar Production (Day)
         """
         parts = capability_name.split(".")
 
@@ -425,6 +452,7 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
         destination = None
         source = None
         time_period = None
+        action = None
 
         for i, part in enumerate(parts):
             part_lower = part.lower()
@@ -438,26 +466,65 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
                     source = source_value.title()
             elif part_lower in ["hour", "day", "week", "month", "year", "minute"]:
                 time_period = part.title()
+            elif part_lower in ["charged", "discharged", "produced", "consumed", "imported", "exported"]:
+                action = part.title()
 
         # Build display name
         if not destination:
             # Fallback if we can't parse
             return capability_name.replace(".", " ").replace("_", " ").title()
 
-        # Handle special cases
-        if destination == "Grid":
-            if source == "Grid":
-                # Grid energy from grid = Grid Import
-                display_name = "Grid Import Energy"
+        # Handle special cases based on destination
+        if destination == "Battery":
+            if action:
+                # battery.energyFlow.day.charged -> Battery Charged (Day)
+                display_name = f"Battery {action}"
             elif source:
-                # Grid energy from battery = Grid Export (to grid from battery)
-                display_name = f"Grid Export Energy from {source}"
+                # battery.energyFlow.day.sourceGrid -> Battery from Grid (Day)
+                display_name = f"Battery from {source}"
+            else:
+                display_name = "Battery Energy"
+
+        elif destination == "Grid":
+            if source == "Grid":
+                # grid.energyFlow.day.sourceGrid -> Grid Import (Day)
+                display_name = "Grid Import"
+            elif source:
+                # grid.energyFlow.day.sourceBattery -> Grid from Battery (Day)
+                # grid.energyFlow.day.sourceSolar -> Grid from Solar (Day)
+                display_name = f"Grid from {source}"
+            else:
+                display_name = "Grid Energy"
+
+        elif destination == "Load":
+            if source:
+                # load.energyFlow.day.sourceBattery -> Load from Battery (Day)
+                # load.energyFlow.day.sourceGrid -> Load from Grid (Day)
+                # load.energyFlow.day.sourceSolar -> Load from Solar (Day)
+                display_name = f"Load from {source}"
+            else:
+                display_name = "Load Energy"
+
+        elif destination == "Solar":
+            if action:
+                # solar.energyFlow.day.produced -> Solar Produced (Day)
+                # solar.energyFlow.day.consumed -> Solar Consumed (Day)
+                display_name = f"Solar {action}"
+            elif source == "Solar":
+                # solar.energyFlow.day.sourceSolar -> Solar Production (Day)
+                display_name = "Solar Production"
+            elif source:
+                # Unlikely but handle it
+                display_name = f"Solar from {source}"
+            else:
+                display_name = "Solar Energy"
+
+        else:
+            # Generic fallback for other destinations
+            if source:
+                display_name = f"{destination} from {source}"
             else:
                 display_name = f"{destination} Energy"
-        elif source:
-            display_name = f"{destination} Energy from {source}"
-        else:
-            display_name = f"{destination} Energy"
 
         # Add time period if present
         if time_period:

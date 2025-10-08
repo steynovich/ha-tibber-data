@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.22] - 2025-10-08
+
+### Fixed
+- **Energy Flow Sensor Names**: Comprehensive improvements to energy flow sensor display names
+  - Battery sensors now properly differentiated: "Battery Charged", "Battery Discharged", "Battery from Grid", "Battery from Load", "Battery from Solar"
+  - Solar sensors now properly differentiated: "Solar Produced", "Solar Consumed", "Solar Production"
+  - Grid sensors now properly named: "Grid Import", "Grid from Battery", "Grid from Solar"
+  - Load sensors now properly named: "Load from Battery", "Load from Grid", "Load from Solar"
+  - All time periods supported: Hour, Day, Week, Month, Year with period suffix (e.g., "Battery Charged (Day)")
+  - Added support for actions: charged, discharged, produced, consumed, imported, exported
+- **Device Name Handling**: Fixed "no_name" prefix appearing in entity IDs
+  - Now handles case-insensitive variations of "no name" from API (e.g., "No name", "no name", "<no name>")
+  - Falls back to manufacturer + model when device name is invalid
+  - Prevents entity IDs like "sensor.no_name_energyflow_..." from being created
+
+### Technical
+- Enhanced `_format_energy_flow_name()` to parse additional action keywords
+- Added destination-specific logic for Battery, Grid, Load, and Solar energy flows
+- Case-insensitive device name validation in `_get_device_display_name()`
+- All energy flow sensors now have unique, meaningful display names across all time periods
+
 ## [1.0.21] - 2025-10-07
 
 ### Performance
