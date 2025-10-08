@@ -5,28 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.22] - 2025-10-08
+## [1.0.21] - 2025-10-08
 
 ### Fixed
-- **Energy Flow Sensor Names**: Comprehensive improvements to energy flow sensor display names
-  - Battery sensors now properly differentiated: "Battery Charged", "Battery Discharged", "Battery from Grid", "Battery from Load", "Battery from Solar"
-  - Solar sensors now properly differentiated: "Solar Produced", "Solar Consumed", "Solar Production"
-  - Grid sensors now properly named: "Grid Import", "Grid from Battery", "Grid from Solar"
-  - Load sensors now properly named: "Load from Battery", "Load from Grid", "Load from Solar"
-  - All time periods supported: Hour, Day, Week, Month, Year with period suffix (e.g., "Battery Charged (Day)")
-  - Added support for actions: charged, discharged, produced, consumed, imported, exported
-- **Device Name Handling**: Fixed "no_name" prefix appearing in entity IDs
-  - Now handles case-insensitive variations of "no name" from API (e.g., "No name", "no name", "<no name>")
-  - Falls back to manufacturer + model when device name is invalid
-  - Prevents entity IDs like "sensor.no_name_energyflow_..." from being created
+- **Duplicate Entity Display Names**: Automatically detects and resolves duplicate sensor names
+  - When multiple capabilities have the same `displayName` from API, adds capability prefix to make unique
+  - Example: `battery.level` and `storage.level` both with displayName "Level" now become "Battery Level" and "Storage Level"
+  - Applies to all capability types: battery.power + grid.power → "Battery Power" and "Grid Power"
+  - Prevents confusion in Home Assistant UI where multiple sensors had identical display names
+  - Entity IDs remain unique (as before), but now display names are also unique
+
+- **Energy Flow Format Support**: Added support for alternative energy flow capability naming format
+  - Now handles both `{destination}.energyFlow.{period}.{source}` and `energyFlow.{period}.{destination}.{source}` formats
+  - Fixed issue where `energyFlow.month.battery.sourceGrid`, `energyFlow.month.battery.sourceSolar`, etc. all had name "Battery Energy (Month)"
+  - Now properly generates unique names: "Battery from Grid (Month)", "Battery from Solar (Month)", "Battery Self-Charge (Week)"
+  - Supports all energy flow combinations across battery, grid, load, and solar with proper naming
 
 ### Technical
-- Enhanced `_format_energy_flow_name()` to parse additional action keywords
-- Added destination-specific logic for Battery, Grid, Load, and Solar energy flows
-- Case-insensitive device name validation in `_get_device_display_name()`
-- All energy flow sensors now have unique, meaningful display names across all time periods
+- Enhanced `TibberDataCapabilityEntity.name` property to detect displayName conflicts
+- Automatically adds capability prefix (first part before dot) when duplicates detected
+- Updated `_format_energy_flow_name()` to parse both capability name formats from Tibber API
+- Added special case handling for "Battery from Battery" → "Battery Self-Charge"
+- Only applies prefix when necessary - capabilities with unique displayNames remain unchanged
+- No breaking changes - existing entity IDs and unique_ids remain the same
 
-## [1.0.21] - 2025-10-07
+## [1.0.20] - 2025-10-07
 
 ### Performance
 - **Entity Data Caching**: Implemented property-level caching for entity data lookups

@@ -377,7 +377,31 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
             # Fallback to formatted capability name
             capability_display_name = self._capability_name.replace("_", " ").title()
 
-        return f"{device_name} {capability_display_name}"
+        # Build the full name
+        full_name = f"{device_name} {capability_display_name}"
+
+        # Check if this name might conflict with other capabilities on the same device
+        # by checking if the capability name has a unique prefix that should be preserved
+        # This handles cases where API returns multiple capabilities with same displayName
+        if capability_data and "displayName" in capability_data:
+            # If capability name has a prefix (e.g., "battery.level" vs "storage.level")
+            # and they both have displayName "Level", we need to distinguish them
+            parts = self._capability_name.split(".")
+            if len(parts) > 1:
+                # Check if other capabilities might have the same displayName
+                all_capabilities = device_data.get("capabilities", [])
+                same_display_name = [
+                    cap for cap in all_capabilities
+                    if cap.get("displayName") == capability_data["displayName"]
+                    and cap.get("name") != self._capability_name
+                ]
+
+                # If duplicates found, add prefix to make unique
+                if same_display_name:
+                    prefix = parts[0].title()
+                    full_name = f"{device_name} {prefix} {capability_display_name}"
+
+        return full_name
 
     @property
     def unique_id(self) -> str:
@@ -423,32 +447,31 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
     def _format_energy_flow_name(self, capability_name: str) -> str:
         """Format energy flow capability names dynamically.
 
-        Examples:
+        Handles both formats:
+        - Format 1: {destination}.energyFlow.{period}.{action/source}
+          Examples: battery.energyFlow.day.charged, grid.energyFlow.day.sourceGrid
+        - Format 2: energyFlow.{period}.{destination}.{action/source}
+          Examples: energyFlow.day.battery.sourceGrid, energyFlow.month.battery.sourceSolar
+
+        Output examples:
             Battery flows:
-                battery.energyFlow.day.charged -> Battery Charged (Day)
-                battery.energyFlow.day.discharged -> Battery Discharged (Day)
-                battery.energyFlow.day.sourceGrid -> Battery from Grid (Day)
-                battery.energyFlow.day.sourceLoad -> Battery from Load (Day)
-                battery.energyFlow.day.sourceSolar -> Battery from Solar (Day)
+                battery.energyFlow.day.charged / energyFlow.day.battery.charged -> Battery Charged (Day)
+                battery.energyFlow.day.sourceGrid / energyFlow.day.battery.sourceGrid -> Battery from Grid (Day)
+                energyFlow.week.battery.sourceBattery -> Battery from Battery (Week)
 
             Grid flows:
-                grid.energyFlow.day.sourceGrid -> Grid Import (Day)
-                grid.energyFlow.day.sourceBattery -> Grid from Battery (Day)
-                grid.energyFlow.day.sourceSolar -> Grid from Solar (Day)
+                grid.energyFlow.day.sourceGrid / energyFlow.day.grid.sourceGrid -> Grid Import (Day)
+                energyFlow.month.grid.sourceBattery -> Grid from Battery (Month)
 
             Load flows:
-                load.energyFlow.day.sourceBattery -> Load from Battery (Day)
-                load.energyFlow.day.sourceGrid -> Load from Grid (Day)
-                load.energyFlow.day.sourceSolar -> Load from Solar (Day)
+                load.energyFlow.day.sourceGrid / energyFlow.day.load.sourceGrid -> Load from Grid (Day)
 
             Solar flows:
-                solar.energyFlow.day.produced -> Solar Produced (Day)
-                solar.energyFlow.day.consumed -> Solar Consumed (Day)
-                solar.energyFlow.day.sourceSolar -> Solar Production (Day)
+                solar.energyFlow.day.produced / energyFlow.day.solar.produced -> Solar Produced (Day)
         """
         parts = capability_name.split(".")
 
-        # Extract components
+        # Extract components - handle both formats
         destination = None
         source = None
         time_period = None
@@ -481,7 +504,12 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
                 display_name = f"Battery {action}"
             elif source:
                 # battery.energyFlow.day.sourceGrid -> Battery from Grid (Day)
-                display_name = f"Battery from {source}"
+                # energyFlow.month.battery.sourceGrid -> Battery from Grid (Month)
+                # Special case: Battery from Battery should be "Battery Self-Charge"
+                if source == "Battery":
+                    display_name = "Battery Self-Charge"
+                else:
+                    display_name = f"Battery from {source}"
             else:
                 display_name = "Battery Energy"
 
@@ -492,6 +520,7 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
             elif source:
                 # grid.energyFlow.day.sourceBattery -> Grid from Battery (Day)
                 # grid.energyFlow.day.sourceSolar -> Grid from Solar (Day)
+                # energyFlow.month.grid.sourceBattery -> Grid from Battery (Month)
                 display_name = f"Grid from {source}"
             else:
                 display_name = "Grid Energy"
@@ -501,6 +530,7 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
                 # load.energyFlow.day.sourceBattery -> Load from Battery (Day)
                 # load.energyFlow.day.sourceGrid -> Load from Grid (Day)
                 # load.energyFlow.day.sourceSolar -> Load from Solar (Day)
+                # energyFlow.month.load.sourceGrid -> Load from Grid (Month)
                 display_name = f"Load from {source}"
             else:
                 display_name = "Load Energy"
@@ -512,6 +542,7 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
                 display_name = f"Solar {action}"
             elif source == "Solar":
                 # solar.energyFlow.day.sourceSolar -> Solar Production (Day)
+                # energyFlow.month.solar.sourceSolar -> Solar Production (Month)
                 display_name = "Solar Production"
             elif source:
                 # Unlikely but handle it
