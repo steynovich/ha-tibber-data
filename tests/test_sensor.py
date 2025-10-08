@@ -194,7 +194,6 @@ class TestTibberDataSensor:
 
         # Should include relevant capability metadata
         assert "last_updated" in extra_state_attributes
-        assert "device_online" in extra_state_attributes
 
         # According to OpenAPI spec, capabilities don't have min/max/precision fields
 

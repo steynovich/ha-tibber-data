@@ -14,10 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reduces clutter in entity attribute listings
   - No functional impact - availability behavior unchanged
 
+### Fixed
+- **Test Suite**: Updated test to reflect removal of device_online attribute
+  - Fixed `test_sensor_attributes` test that was checking for removed attribute
+  - All 17 sensor tests now pass
+
 ### Technical
 - Removed `device_online` attribute addition in `TibberDataCapabilityEntity.extra_state_attributes`
 - Entity availability continues to be controlled by device online status via the `available` property
 - Cleaner separation of concerns - online status is an availability concern, not an attribute
+- Updated test suite to match current implementation
 
 ## [1.0.29] - 2025-10-08
 

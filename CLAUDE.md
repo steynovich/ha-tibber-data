@@ -104,6 +104,8 @@ pytest tests/test_coordinator.py # Test data coordinator
 - 2025-10-08: Fixed battery device class detection - only percentage sensors with battery/storage-related keywords get battery device class, preventing power flow percentages from being incorrectly identified as battery sensors
 - 2025-10-08: Fixed entity availability during temporary failures - entities now remain available with cached data when coordinator updates fail temporarily (network issues, API timeouts), only becoming unavailable when device is actually offline
 - 2025-10-08: Fixed periodic energy flow sensors becoming unavailable at period boundaries - hourly/daily/weekly/monthly sensors now use TOTAL state class instead of TOTAL_INCREASING, preventing unavailability when values reset to 0
+- 2025-10-08: Removed device_online attribute from capability entities - cleaner entity attributes, online status reflected through availability only
+- 2025-10-08: Updated test suite to match removal of device_online attribute
 
 ## EV Support Features
 
@@ -143,6 +145,26 @@ The integration uses case-insensitive attribute matching to detect device online
 - Entity availability is handled dynamically based on device online status
 - ENUM sensors use `SensorDeviceClass.ENUM` with no `state_class`
 - Range sensors maintain `state_class="measurement"` for statistics
+
+### Device Class Mappings
+The integration automatically assigns Home Assistant device classes based on sensor units:
+
+| Unit | Device Class | State Class | Notes |
+|------|--------------|-------------|-------|
+| W, kW | `power` | `measurement` | Power sensors (charging, solar, load) |
+| Wh, kWh | `energy` | `total` | Energy sensors (flow, storage, production) |
+| % | `battery` | `measurement` | Only for battery/storage sensors (stateOfCharge, battery.level) |
+| % | none | none | Power flow percentages (distribution ratios) |
+| °C, °F | `temperature` | `measurement` | Temperature sensors |
+| A | `current` | `measurement` | Current sensors |
+| V | `voltage` | `measurement` | Voltage sensors |
+| dBm | `signal_strength` | `measurement` | WiFi/Cellular signal strength |
+| string | `enum` | none | Status sensors (charging, connector, connectivity) |
+
+**Important Notes:**
+- All energy sensors (kWh/Wh) use `TOTAL` state class (not `TOTAL_INCREASING`) to allow periodic resets and storage fluctuations
+- Battery device class only assigned to percentage sensors with battery/storage keywords in capability name
+- ENUM sensors (string values) automatically get title case formatting ("Charging" not "charging")
 
 ## Performance Optimizations
 

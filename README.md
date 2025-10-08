@@ -117,24 +117,43 @@ The integration creates the following types of entities:
 ### Sensors
 
 **Capability Sensors** (from device capabilities):
-- **Battery Level** (%) - For EVs and battery storage systems (uses battery device class)
-- **Charging Power** (kW) - Current charging/discharging power
-- **Power Flow** (W) - Real-time power flow (solar, battery, grid, load)
+- **Battery Level** (%) - For EVs and battery storage systems (device class: `battery`)
+- **Charging Power** (kW, W) - Current charging/discharging power (device class: `power`)
+- **Power Flow** (kW, W) - Real-time power flow (solar, battery, grid, load) (device class: `power`)
 - **Power Flow Percentages** (%) - Power distribution ratios (no device class, for display only)
-- **Temperature** (°C) - For thermostats and heat pumps
-- **Energy Consumption** (kWh) - Total energy consumed
-- **Solar Production** (kWh) - Total solar energy produced
-- **Charging Current** (A) - Current draw during charging
-- **Signal Strength** (dBm) - Device connectivity strength
-- **Charging Status** (ENUM) - Vehicle charging status (Idle/Charging/Complete/Error/Unknown)
-- **Connector Status** (ENUM) - Vehicle plug status (Connected/Disconnected/Unknown)
-- **Cellular Connectivity** (ENUM) - Cellular connection status
-- **WiFi Connectivity** (ENUM) - WiFi connection status
+- **Temperature** (°C, °F) - For thermostats and heat pumps (device class: `temperature`)
+- **Energy Consumption** (kWh, Wh) - Total energy consumed (device class: `energy`)
+- **Solar Production** (kWh, Wh) - Total solar energy produced (device class: `energy`)
+- **Charging Current** (A) - Current draw during charging (device class: `current`)
+- **Voltage** (V) - Electrical voltage (device class: `voltage`)
+- **Signal Strength** (dBm) - Device connectivity strength (device class: `signal_strength`)
+- **Charging Status** (ENUM) - Vehicle charging status (Idle/Charging/Complete/Error/Unknown) (device class: `enum`)
+- **Connector Status** (ENUM) - Vehicle plug status (Connected/Disconnected/Unknown) (device class: `enum`)
+- **Cellular Connectivity** (ENUM) - Cellular connection status (device class: `enum`)
+- **WiFi Connectivity** (ENUM) - WiFi connection status (device class: `enum`)
 - **Estimated Range** (km) - Remaining driving range (converted from meters)
-- **Energy Flow Sensors** - Automatically formatted for clarity:
+- **Energy Flow Sensors** - Automatically formatted for clarity (device class: `energy`):
   - Grid Import Energy (Hour/Day/etc.) - Energy imported from grid
   - Grid Export Energy from Battery (Hour/Day/etc.) - Battery energy exported to grid
   - Load Energy from Battery (Hour/Day/etc.) - Battery energy used by load
+
+#### Device Class Mappings
+
+The integration automatically assigns appropriate Home Assistant device classes based on sensor units:
+
+| Unit | Device Class | Example Sensors |
+|------|--------------|-----------------|
+| W, kW | `power` | Charging Power, Solar Power, Load Power |
+| Wh, kWh | `energy` | Energy Flow, Battery Energy, Solar Production |
+| % | `battery` | Battery Level, State of Charge (only for battery/storage sensors) |
+| % | none | Power Flow Percentages (distribution ratios) |
+| °C, °F | `temperature` | Temperature sensors |
+| A | `current` | Charging Current |
+| V | `voltage` | Voltage sensors |
+| dBm | `signal_strength` | WiFi/Cellular Signal Strength |
+| string | `enum` | Charging Status, Connector Status, Connectivity Status |
+
+All energy sensors (kWh/Wh) use `TOTAL` state class, allowing periodic values to reset and storage values to fluctuate without becoming unavailable.
 
 **Attribute Sensors** (from device attributes):
 - **VIN Number** - Vehicle identification number (diagnostic)
