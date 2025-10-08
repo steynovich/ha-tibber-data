@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 
-from .const import DOMAIN
+from .const import DATA_COORDINATOR, DOMAIN
 from .coordinator import TibberDataUpdateCoordinator
 
 # Keys to redact for privacy/security
@@ -37,7 +37,7 @@ async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
-    coordinator: TibberDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: TibberDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][DATA_COORDINATOR]
 
     diagnostics_data = {
         "config_entry": {
@@ -61,7 +61,7 @@ async def async_get_device_diagnostics(
     hass: HomeAssistant, entry: ConfigEntry, device: DeviceEntry
 ) -> dict[str, Any]:
     """Return diagnostics for a device."""
-    coordinator: TibberDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: TibberDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][DATA_COORDINATOR]
 
     # Find the device in coordinator data
     device_data = None
