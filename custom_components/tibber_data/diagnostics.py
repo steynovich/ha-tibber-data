@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 
-from .const import DATA_COORDINATOR, DOMAIN
+from .const import DATA_COORDINATOR, DATA_DEVICES, DATA_HOMES, DOMAIN
 from .coordinator import TibberDataUpdateCoordinator
 
 # Keys to redact for privacy/security
@@ -66,16 +66,12 @@ async def async_get_device_diagnostics(
     # Find the device in coordinator data
     device_data = None
     if coordinator.data and isinstance(coordinator.data, dict):
-        homes = coordinator.data.get("homes", [])
-        for home in homes:
-            devices = home.get("devices", [])
-            for dev in devices:
-                # Match by device identifiers
-                dev_id = dev.get("id")
-                if dev_id and any(dev_id in identifier for identifier in device.identifiers):
-                    device_data = dev
-                    break
-            if device_data:
+        devices = coordinator.data.get(DATA_DEVICES, {})
+        # Find device by matching identifiers
+        for device_id, dev_data in devices.items():
+            # Match by device identifiers - check if device_id is in any identifier tuple
+            if any(device_id in str(identifier) for identifier in device.identifiers):
+                device_data = dev_data
                 break
 
     diagnostics_data = {
