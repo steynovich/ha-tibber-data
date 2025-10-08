@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.24] - 2025-10-08
+
+### Changed
+- **Code Refactoring**: Simplified entity naming logic for better maintainability
+  - Split `name` property into focused helper methods (`_get_capability_display_name()`, `_has_duplicate_display_name()`)
+  - Refactored `_format_energy_flow_name()` with data-driven approach using naming rules dictionary
+  - Reduced energy flow naming method from ~120 lines to ~80 lines (33% reduction)
+  - Replaced nested if/elif chains with cleaner, more maintainable structure
+  - No functional changes - all existing behavior preserved
+
+### Technical
+- Main `name` property reduced from 54 lines to 15 lines
+- Energy flow naming now uses declarative `naming_rules` dict instead of procedural conditionals
+- Easier to extend with new destinations or modify naming patterns
+- Improved separation of concerns and testability
+- All 114 tests pass with full mypy and ruff compliance
+
 ## [1.0.23] - 2025-10-08
 
 ### Fixed
