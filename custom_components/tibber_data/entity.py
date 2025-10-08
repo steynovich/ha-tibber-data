@@ -602,11 +602,6 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
         if "lastUpdated" in capability_data:
             attributes["last_updated"] = capability_data["lastUpdated"]
 
-        # Add device information
-        device_data = self.device_data
-        if device_data:
-            attributes["device_online"] = device_data.get("online")
-
         return attributes
 
 

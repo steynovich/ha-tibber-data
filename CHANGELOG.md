@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.30] - 2025-10-08
+
+### Changed
+- **Cleaner Entity Attributes**: Removed "device_online" attribute from all capability entities (sensors)
+  - Entities now only show relevant attributes (e.g., "last_updated" for capabilities)
+  - Device online status is still reflected through entity availability
+  - Reduces clutter in entity attribute listings
+  - No functional impact - availability behavior unchanged
+
+### Technical
+- Removed `device_online` attribute addition in `TibberDataCapabilityEntity.extra_state_attributes`
+- Entity availability continues to be controlled by device online status via the `available` property
+- Cleaner separation of concerns - online status is an availability concern, not an attribute
+
 ## [1.0.29] - 2025-10-08
 
 ### Added
