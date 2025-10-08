@@ -350,58 +350,66 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
     @property
     def name(self) -> str:
         """Return entity name (display name without Tibber prefix)."""
-        from .const import CAPABILITY_MAPPINGS
-
-        capability_data = self.capability_data
         device_data = self.device_data
-
         if not device_data:
             return f"Unknown Device {self._capability_name.replace('_', ' ').title()}"
 
-        # Get device name using fallback logic
         device_name = self._get_device_display_name(device_data)
+        capability_display_name = self._get_capability_display_name()
 
-        # Get capability display name with priority:
-        # 1. Display name from CAPABILITY_MAPPINGS (overrides API)
-        # 2. Dynamic formatting for energyFlow capabilities
-        # 3. displayName from API
-        # 4. Formatted capability name
+        # Check for duplicate displayNames and add prefix if needed
+        if self._has_duplicate_display_name():
+            prefix = self._capability_name.split(".")[0].title()
+            return f"{device_name} {prefix} {capability_display_name}"
+
+        return f"{device_name} {capability_display_name}"
+
+    def _get_capability_display_name(self) -> str:
+        """Get the display name for this capability.
+
+        Priority order:
+        1. Custom mapping from CAPABILITY_MAPPINGS
+        2. Dynamic formatting for energyFlow capabilities
+        3. API's displayName field
+        4. Formatted capability name
+        """
+        from .const import CAPABILITY_MAPPINGS
+
         mapping = CAPABILITY_MAPPINGS.get(self._capability_name, {})
         if "display_name" in mapping:
-            capability_display_name = mapping["display_name"]
-        elif "energyflow" in self._capability_name.lower():
-            capability_display_name = self._format_energy_flow_name(self._capability_name)
-        elif capability_data and "displayName" in capability_data:
-            capability_display_name = capability_data["displayName"]
-        else:
-            # Fallback to formatted capability name
-            capability_display_name = self._capability_name.replace("_", " ").title()
+            return mapping["display_name"]
 
-        # Build the full name
-        full_name = f"{device_name} {capability_display_name}"
+        if "energyflow" in self._capability_name.lower():
+            return self._format_energy_flow_name(self._capability_name)
 
-        # Check if this name might conflict with other capabilities on the same device
-        # by checking if the capability name has a unique prefix that should be preserved
-        # This handles cases where API returns multiple capabilities with same displayName
+        capability_data = self.capability_data
         if capability_data and "displayName" in capability_data:
-            # If capability name has a prefix (e.g., "battery.level" vs "storage.level")
-            # and they both have displayName "Level", we need to distinguish them
-            parts = self._capability_name.split(".")
-            if len(parts) > 1:
-                # Check if other capabilities might have the same displayName
-                all_capabilities = device_data.get("capabilities", [])
-                same_display_name = [
-                    cap for cap in all_capabilities
-                    if cap.get("displayName") == capability_data["displayName"]
-                    and cap.get("name") != self._capability_name
-                ]
+            return capability_data["displayName"]
 
-                # If duplicates found, add prefix to make unique
-                if same_display_name:
-                    prefix = parts[0].title()
-                    full_name = f"{device_name} {prefix} {capability_display_name}"
+        return self._capability_name.replace("_", " ").title()
 
-        return full_name
+    def _has_duplicate_display_name(self) -> bool:
+        """Check if other capabilities on this device have the same displayName."""
+        capability_data = self.capability_data
+        device_data = self.device_data
+
+        # Only check for API displayName conflicts (not custom names)
+        if not capability_data or "displayName" not in capability_data or not device_data:
+            return False
+
+        # Only applies to capabilities with dot notation (e.g., battery.level)
+        if "." not in self._capability_name:
+            return False
+
+        display_name = capability_data["displayName"]
+        all_capabilities = device_data.get("capabilities", [])
+
+        # Check if any other capability shares this displayName
+        return any(
+            cap.get("displayName") == display_name
+            and cap.get("name") != self._capability_name
+            for cap in all_capabilities
+        )
 
     @property
     def unique_id(self) -> str:
@@ -448,116 +456,81 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
         """Format energy flow capability names dynamically.
 
         Handles both formats:
-        - Format 1: {destination}.energyFlow.{period}.{action/source}
-          Examples: battery.energyFlow.day.charged, grid.energyFlow.day.sourceGrid
-        - Format 2: energyFlow.{period}.{destination}.{action/source}
-          Examples: energyFlow.day.battery.sourceGrid, energyFlow.month.battery.sourceSolar
-
-        Output examples:
-            Battery flows:
-                battery.energyFlow.day.charged / energyFlow.day.battery.charged -> Battery Charged (Day)
-                battery.energyFlow.day.sourceGrid / energyFlow.day.battery.sourceGrid -> Battery from Grid (Day)
-                energyFlow.week.battery.sourceBattery -> Battery from Battery (Week)
-
-            Grid flows:
-                grid.energyFlow.day.sourceGrid / energyFlow.day.grid.sourceGrid -> Grid Import (Day)
-                energyFlow.month.grid.sourceBattery -> Grid from Battery (Month)
-
-            Load flows:
-                load.energyFlow.day.sourceGrid / energyFlow.day.load.sourceGrid -> Load from Grid (Day)
-
-            Solar flows:
-                solar.energyFlow.day.produced / energyFlow.day.solar.produced -> Solar Produced (Day)
+        - {destination}.energyFlow.{period}.{action/source}
+        - energyFlow.{period}.{destination}.{action/source}
         """
         parts = capability_name.split(".")
 
-        # Extract components - handle both formats
-        destination = None
-        source = None
-        time_period = None
-        action = None
+        # Parse components
+        destination: Optional[str] = None
+        source: Optional[str] = None
+        time_period: Optional[str] = None
+        action: Optional[str] = None
 
-        for i, part in enumerate(parts):
+        destinations = {"load", "grid", "solar", "battery"}
+        periods = {"hour", "day", "week", "month", "year", "minute"}
+        actions = {"charged", "discharged", "produced", "consumed", "imported", "exported"}
+
+        for part in parts:
             part_lower = part.lower()
-            if part_lower in ["load", "grid", "solar", "battery"]:
-                if destination is None:
-                    destination = part.title()
+            if part_lower in destinations and not destination:
+                destination = part.title()
             elif part_lower.startswith("source"):
-                # Extract source name (e.g., sourceBattery -> Battery)
-                source_value = part[6:]  # Remove "source" prefix
-                if source_value:
-                    source = source_value.title()
-            elif part_lower in ["hour", "day", "week", "month", "year", "minute"]:
+                source = part[6:].title()  # Remove "source" prefix
+            elif part_lower in periods:
                 time_period = part.title()
-            elif part_lower in ["charged", "discharged", "produced", "consumed", "imported", "exported"]:
+            elif part_lower in actions:
                 action = part.title()
 
-        # Build display name
+        # Fallback if no destination found
         if not destination:
-            # Fallback if we can't parse
             return capability_name.replace(".", " ").replace("_", " ").title()
 
-        # Handle special cases based on destination
-        if destination == "Battery":
-            if action:
-                # battery.energyFlow.day.charged -> Battery Charged (Day)
-                display_name = f"Battery {action}"
-            elif source:
-                # battery.energyFlow.day.sourceGrid -> Battery from Grid (Day)
-                # energyFlow.month.battery.sourceGrid -> Battery from Grid (Month)
-                # Special case: Battery from Battery should be "Battery Self-Charge"
-                if source == "Battery":
-                    display_name = "Battery Self-Charge"
-                else:
-                    display_name = f"Battery from {source}"
-            else:
-                display_name = "Battery Energy"
+        # Define naming rules per destination
+        naming_rules: Dict[str, Dict[str, Any]] = {
+            "Battery": {
+                "action": lambda a: f"Battery {a}",
+                "source_Battery": "Battery Self-Charge",
+                "source": lambda s: f"Battery from {s}",
+                "default": "Battery Energy"
+            },
+            "Grid": {
+                "source_Grid": "Grid Import",
+                "source": lambda s: f"Grid from {s}",
+                "default": "Grid Energy"
+            },
+            "Load": {
+                "source": lambda s: f"Load from {s}",
+                "default": "Load Energy"
+            },
+            "Solar": {
+                "action": lambda a: f"Solar {a}",
+                "source_Solar": "Solar Production",
+                "source": lambda s: f"Solar from {s}",
+                "default": "Solar Energy"
+            }
+        }
 
-        elif destination == "Grid":
-            if source == "Grid":
-                # grid.energyFlow.day.sourceGrid -> Grid Import (Day)
-                display_name = "Grid Import"
-            elif source:
-                # grid.energyFlow.day.sourceBattery -> Grid from Battery (Day)
-                # grid.energyFlow.day.sourceSolar -> Grid from Solar (Day)
-                # energyFlow.month.grid.sourceBattery -> Grid from Battery (Month)
-                display_name = f"Grid from {source}"
-            else:
-                display_name = "Grid Energy"
+        # Get naming rule for this destination
+        rules = naming_rules.get(destination, {})
 
-        elif destination == "Load":
-            if source:
-                # load.energyFlow.day.sourceBattery -> Load from Battery (Day)
-                # load.energyFlow.day.sourceGrid -> Load from Grid (Day)
-                # load.energyFlow.day.sourceSolar -> Load from Solar (Day)
-                # energyFlow.month.load.sourceGrid -> Load from Grid (Month)
-                display_name = f"Load from {source}"
+        # Apply naming rules in priority order
+        display_name: str
+        if action:
+            action_func = rules.get("action", lambda a: f"{destination} {a}")
+            display_name = action_func(action)
+        elif source:
+            # Check for specific source match (e.g., "source_Battery")
+            source_key = f"source_{source}"
+            if source_key in rules:
+                display_name = str(rules[source_key])
             else:
-                display_name = "Load Energy"
-
-        elif destination == "Solar":
-            if action:
-                # solar.energyFlow.day.produced -> Solar Produced (Day)
-                # solar.energyFlow.day.consumed -> Solar Consumed (Day)
-                display_name = f"Solar {action}"
-            elif source == "Solar":
-                # solar.energyFlow.day.sourceSolar -> Solar Production (Day)
-                # energyFlow.month.solar.sourceSolar -> Solar Production (Month)
-                display_name = "Solar Production"
-            elif source:
-                # Unlikely but handle it
-                display_name = f"Solar from {source}"
-            else:
-                display_name = "Solar Energy"
-
+                source_func = rules.get("source", lambda s: f"{destination} from {s}")
+                display_name = source_func(source)
         else:
-            # Generic fallback for other destinations
-            if source:
-                display_name = f"{destination} from {source}"
-            else:
-                display_name = f"{destination} Energy"
+            display_name = str(rules.get("default", f"{destination} Energy"))
 
-        # Add time period if present
+        # Add time period suffix if present
         if time_period:
             display_name = f"{display_name} ({time_period})"
 
