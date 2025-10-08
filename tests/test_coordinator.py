@@ -420,3 +420,90 @@ class TestTibberDataCoordinator:
         finally:
             # Clean up any pending timers
             await coordinator.async_shutdown()
+
+    async def test_coordinator_keeps_data_on_update_failure(
+        self, hass, mock_client, mock_config_entry, mock_oauth_session
+    ):
+        """Test that coordinator keeps previous data when update fails."""
+        from custom_components.tibber_data.api.models import (
+            TibberHome,
+            TibberDevice,
+            DeviceCapability
+        )
+        from datetime import datetime, timezone
+
+        # Create coordinator
+        coordinator = TibberDataUpdateCoordinator(
+            hass,
+            mock_client,
+            mock_config_entry,
+            mock_oauth_session,
+            update_interval=timedelta(seconds=1)
+        )
+
+        try:
+            device_uuid = "12345678-1234-5678-1234-567812345678"
+            home_uuid = "87654321-4321-8765-4321-876543218765"
+            mock_home = TibberHome(
+                home_id=home_uuid,
+                display_name="Test Home",
+                time_zone="UTC",
+                address="Test Address",
+                device_count=1
+            )
+
+            capability = DeviceCapability(
+                capability_id="cap-123",
+                device_id=device_uuid,
+                name="battery_level",
+                display_name="Battery Level",
+                value=80.0,
+                unit="%",
+                last_updated=datetime.now(timezone.utc)
+            )
+
+            mock_device = TibberDevice(
+                device_id=device_uuid,
+                external_id="ext-123",
+                name="Test Device",
+                home_id=home_uuid,
+                online_status=True,
+                capabilities=[capability]
+            )
+
+            # First successful update
+            mock_client.get_homes_with_devices.return_value = ([mock_home], [mock_device])
+            await coordinator.async_refresh()
+
+            # Verify first update worked
+            assert coordinator.data is not None
+            assert device_uuid in coordinator.data["devices"]
+            first_data = coordinator.data.copy()
+            first_battery_value = coordinator.data["devices"][device_uuid]["capabilities"][0]["value"]
+            assert first_battery_value == 80.0
+
+            # Second update fails (network error)
+            mock_client.get_homes_with_devices.side_effect = Exception("Network timeout")
+
+            # Try to update - DataUpdateCoordinator catches UpdateFailed internally
+            # and keeps old data, so async_refresh won't raise
+            await coordinator.async_refresh()
+
+            # Verify coordinator still has the previous data (cached)
+            assert coordinator.data is not None
+            assert device_uuid in coordinator.data["devices"]
+            cached_battery_value = coordinator.data["devices"][device_uuid]["capabilities"][0]["value"]
+            assert cached_battery_value == 80.0  # Still has old value from first update
+            assert coordinator.data["devices"][device_uuid]["online"] is True  # Device still shows as online from first update
+
+            # Verify last_update_success is False after failure
+            assert coordinator.last_update_success is False
+
+            # Verify entities would still be available because we have cached data
+            # and device is online according to last known state
+            assert coordinator.data is not None  # Has cached data
+            assert coordinator.data["devices"][device_uuid]["online"] is True  # Last known state is online
+
+        finally:
+            # Clean up any pending timers
+            await coordinator.async_shutdown()

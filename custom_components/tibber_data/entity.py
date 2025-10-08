@@ -60,12 +60,27 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
 
     @property
     def available(self) -> bool:
-        """Return True if entity is available."""
+        """Return True if entity is available.
+
+        Entity is available if:
+        1. Coordinator has data (from current or previous successful update), AND
+        2. Device data exists in coordinator, AND
+        3. Device is online according to the last known state
+
+        This allows entities to remain available with cached data even when
+        coordinator updates fail temporarily (network issues, API timeouts).
+        Entities only become unavailable when the device is actually offline
+        according to the API's last known state.
+        """
+        # Check if coordinator has data (current or cached from previous update)
+        if not self.coordinator.data:
+            return False
+
         device_data = self.device_data
         if not device_data:
             return False
 
-        # Entity is available if device is online
+        # Entity is available if device is online according to last known state
         online_status: bool = device_data.get("online", False)
         return online_status
 

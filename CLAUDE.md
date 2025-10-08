@@ -102,6 +102,7 @@ pytest tests/test_coordinator.py # Test data coordinator
 - 2025-10-08: Comprehensive energy flow sensor naming improvements - all battery, solar, grid, and load sensors now have unique meaningful names across all time periods (hour, day, week, month, year)
 - 2025-10-08: Fixed "no_name" entity ID prefix issue - case-insensitive handling of invalid device names with proper fallback to manufacturer/model
 - 2025-10-08: Fixed battery device class detection - only percentage sensors with battery/storage-related keywords get battery device class, preventing power flow percentages from being incorrectly identified as battery sensors
+- 2025-10-08: Fixed entity availability during temporary failures - entities now remain available with cached data when coordinator updates fail temporarily (network issues, API timeouts), only becoming unavailable when device is actually offline
 
 ## EV Support Features
 

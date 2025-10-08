@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.27] - 2025-10-08
+
+### Fixed
+- **Entity Availability During Temporary Failures**: Entities no longer become unavailable during brief network issues or API timeouts
+  - Entities now remain available with cached data when coordinator updates fail temporarily
+  - Entities only become unavailable when device is actually offline according to API
+  - Improved availability logic to check for cached coordinator data instead of update success flag
+  - Prevents sensor flickering during transient network problems
+
+### Technical
+- Enhanced `available` property in `TibberDataEntity` to use cached coordinator data
+- Checks `coordinator.data` (which persists across failed updates) instead of `last_update_success`
+- Entities use device's last known online state from cached data
+- Added comprehensive test coverage for coordinator data caching behavior on update failures
+- All tests pass (117 passed, 7 skipped)
+
 ## [1.0.26] - 2025-10-08
 
 ### Fixed

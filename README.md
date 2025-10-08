@@ -255,6 +255,17 @@ If your device's battery level is showing an incorrect percentage (e.g., 0.9% in
 - **Solution**: Restart Home Assistant after updating to ensure the fix takes effect
 - **Note**: Power flow percentage sensors represent power distribution ratios, not battery levels
 
+### Sensors Becoming Unavailable
+
+If sensors intermittently become unavailable during brief network issues:
+
+- **Cause**: Temporary network issues or API timeouts can cause coordinator update failures
+- **Recent Fix (v1.0.27+)**: Entities now remain available with cached data during temporary failures
+  - Entities only become unavailable when device is actually offline according to API
+  - Cached data from last successful update is used during transient network problems
+  - Prevents sensor flickering during brief connectivity issues
+- **Note**: This is normal coordinator behavior - entities use last known good data until next successful update
+
 ### Debug Logging
 
 To enable debug logging for troubleshooting:
