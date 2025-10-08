@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 
-from .const import DATA_COORDINATOR, DATA_DEVICES, DATA_HOMES, DOMAIN
+from .const import DATA_COORDINATOR, DATA_DEVICES, DOMAIN
 from .coordinator import TibberDataUpdateCoordinator
 
 # Keys to redact for privacy/security
@@ -49,7 +49,7 @@ async def async_get_config_entry_diagnostics(
         },
         "coordinator": {
             "last_update_success": coordinator.last_update_success,
-            "update_interval": coordinator.update_interval.total_seconds(),
+            "update_interval": coordinator.update_interval.total_seconds() if coordinator.update_interval else None,
         },
         "api_data": async_redact_data(coordinator.data, TO_REDACT) if coordinator.data else None,
     }
