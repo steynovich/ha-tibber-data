@@ -564,7 +564,7 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
             "Battery": {
                 "action": lambda a: f"Battery {a}",
                 "source_Battery": "Battery Self-Charge",
-                "source": lambda s: f"Battery Charge Energy from {s}",
+                "source": lambda s: f"Battery from {s}",
                 "metric": lambda m: f"Battery {m}",
                 "default": "Battery Energy"
             },
