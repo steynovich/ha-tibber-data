@@ -562,11 +562,12 @@ class TestTibberDataSensor:
             assert grid_power_sensor.device_class == "power"
             assert grid_power_sensor.state_class == "measurement"
 
-    async def test_all_energy_sensors_use_total_state_class(self, hass, mock_coordinator):
-        """Test that all energy sensors use TOTAL state class (all Tibber sensors are periodic or storage)."""
+    async def test_periodic_energy_sensors_have_no_state_class(self, hass, mock_coordinator):
+        """Test that periodic energy sensors have NO state_class to allow resets to 0."""
         from unittest.mock import patch
 
-        # Simulate various energy sensors - all should use TOTAL (never TOTAL_INCREASING)
+        # Periodic energy sensors (.hour., .day., etc.) should have NO state_class
+        # Non-periodic energy sensors (storage, lifetime) should use TOTAL state_class
         with patch.object(
             mock_coordinator,
             'data',
@@ -617,6 +618,13 @@ class TestTibberDataSensor:
                                 "value": 220125,
                                 "unit": "Wh",
                                 "lastUpdated": "2025-10-08T17:09:37Z"
+                            },
+                            {
+                                "name": "storage.availableEnergy",
+                                "displayName": "Available Energy",
+                                "value": 13500,
+                                "unit": "Wh",
+                                "lastUpdated": "2025-10-08T17:09:37Z"
                             }
                         ],
                         "attributes": []
@@ -624,7 +632,7 @@ class TestTibberDataSensor:
                 }
             }
         ):
-            # Test hourly energy flow sensor
+            # Test hourly energy flow sensor - should have NO state_class
             hour_sensor = TibberDataCapabilitySensor(
                 coordinator=mock_coordinator,
                 device_id="device-123",
@@ -633,36 +641,44 @@ class TestTibberDataSensor:
             assert hour_sensor.native_value == 2
             assert hour_sensor.native_unit_of_measurement == "Wh"
             assert hour_sensor.device_class == "energy"
-            assert hour_sensor.state_class == "total"  # Should be TOTAL, not TOTAL_INCREASING
+            assert hour_sensor.state_class is None  # Periodic sensor - NO state_class
 
-            # Test daily energy flow sensor
+            # Test daily energy flow sensor - should have NO state_class
             day_sensor = TibberDataCapabilitySensor(
                 coordinator=mock_coordinator,
                 device_id="device-123",
                 capability_name="energyFlow.day.solar.produced"
             )
-            assert day_sensor.state_class == "total"
+            assert day_sensor.state_class is None  # Periodic sensor - NO state_class
 
-            # Test weekly energy flow sensor
+            # Test weekly energy flow sensor - should have NO state_class
             week_sensor = TibberDataCapabilitySensor(
                 coordinator=mock_coordinator,
                 device_id="device-123",
                 capability_name="energyFlow.week.load.consumed"
             )
-            assert week_sensor.state_class == "total"
+            assert week_sensor.state_class is None  # Periodic sensor - NO state_class
 
-            # Test monthly energy flow sensor with "exported" keyword
+            # Test monthly energy flow sensor - should have NO state_class
             month_sensor = TibberDataCapabilitySensor(
                 coordinator=mock_coordinator,
                 device_id="device-123",
                 capability_name="energyFlow.month.grid.exported"
             )
-            assert month_sensor.state_class == "total"
+            assert month_sensor.state_class is None  # Periodic sensor - NO state_class
 
-            # Test grid imported sensor (previously would have been TOTAL_INCREASING)
+            # Test grid imported sensor - should have NO state_class
             imported_sensor = TibberDataCapabilitySensor(
                 coordinator=mock_coordinator,
                 device_id="device-123",
                 capability_name="energyFlow.hour.grid.imported"
             )
-            assert imported_sensor.state_class == "total"  # Now TOTAL for all energy sensors
+            assert imported_sensor.state_class is None  # Periodic sensor - NO state_class
+
+            # Test non-periodic storage energy sensor - should have TOTAL state_class
+            storage_sensor = TibberDataCapabilitySensor(
+                coordinator=mock_coordinator,
+                device_id="device-123",
+                capability_name="storage.availableEnergy"
+            )
+            assert storage_sensor.state_class == "total"  # Non-periodic - uses TOTAL state_class
