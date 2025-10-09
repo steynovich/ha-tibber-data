@@ -223,14 +223,16 @@ class TestEntityCaching:
         # Get initial data
         assert sensor.device_data is not None
         assert sensor.capability_data is not None
+        initial_value = sensor.native_value
 
-        # Simulate coordinator losing data (e.g., during error)
+        # Simulate coordinator losing data (e.g., during transient network error)
         mock_coordinator.data = None
 
-        # Should handle gracefully and return None
-        assert sensor.device_data is None
-        assert sensor.capability_data is None
-        assert sensor.native_value is None
+        # NEW BEHAVIOR: Cache is maintained to prevent flickering during transient errors
+        # This keeps entities available with last known good data
+        assert sensor.device_data is not None  # Returns cached data
+        assert sensor.capability_data is not None  # Returns cached data
+        assert sensor.native_value == initial_value  # Returns cached value
 
         # Restore data
         mock_coordinator.data = {

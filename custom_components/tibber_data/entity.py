@@ -29,19 +29,38 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
 
     @property
     def device_data(self) -> Optional[Dict[str, Any]]:
-        """Get device data from coordinator with caching."""
+        """Get device data from coordinator with caching.
+
+        Returns cached device data to avoid repeated lookups during state updates.
+        Cache is tied to coordinator data object identity, and maintains previous
+        data if new data is temporarily unavailable during coordinator transitions.
+        """
+        coordinator_data = self.coordinator.data
+
+        # If no coordinator data, return previous cache to maintain availability
+        if not coordinator_data:
+            return self._cached_device_data
+
         # Check if cache is valid for current coordinator data (use data object id as cache key)
-        current_data_id = id(self.coordinator.data)
+        current_data_id = id(coordinator_data)
         if self._device_cache_coordinator_update == current_data_id:
             return self._cached_device_data
 
         # Cache miss - fetch and cache the data
-        if not self.coordinator.data or "devices" not in self.coordinator.data:
-            self._cached_device_data = None
+        if "devices" not in coordinator_data:
+            # Keep previous cache if structure is invalid
+            pass  # Don't update cache, return old data below
         else:
-            self._cached_device_data = self.coordinator.data["devices"].get(self._device_id)
+            new_device_data = coordinator_data["devices"].get(self._device_id)
+            if new_device_data is not None:
+                # Update cache with new valid data
+                self._cached_device_data = new_device_data
+                self._device_cache_coordinator_update = current_data_id
+            # If device not found in new data but we have cache, keep it for stability
+            # Only clear cache if device was never found
+            elif self._cached_device_data is None:
+                self._device_cache_coordinator_update = current_data_id
 
-        self._device_cache_coordinator_update = current_data_id
         return self._cached_device_data
 
     @property
@@ -63,17 +82,17 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
         """Return True if entity is available.
 
         Entity is available if:
-        1. Coordinator has data (from current or previous successful update), AND
+        1. Coordinator's last update was successful (ensures we have valid data), AND
         2. Device data exists in coordinator, AND
         3. Device is online according to the last known state
 
-        This allows entities to remain available with cached data even when
-        coordinator updates fail temporarily (network issues, API timeouts).
-        Entities only become unavailable when the device is actually offline
-        according to the API's last known state.
+        Using last_update_success ensures entities don't flicker unavailable
+        during coordinator data transitions, as CoordinatorEntity maintains
+        this state across updates.
         """
-        # Check if coordinator has data (current or cached from previous update)
-        if not self.coordinator.data:
+        # Use coordinator's last_update_success to avoid flickering during updates
+        # This is maintained by CoordinatorEntity across data transitions
+        if not self.coordinator.last_update_success:
             return False
 
         device_data = self.device_data
@@ -351,15 +370,32 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
 
     @property
     def capability_data(self) -> Optional[Dict[str, Any]]:
-        """Get capability data with caching per coordinator update."""
+        """Get capability data with caching per coordinator update.
+
+        Maintains cached data during coordinator transitions to prevent
+        flickering unavailability during updates.
+        """
+        coordinator_data = self.coordinator.data
+
+        # If no coordinator data, return previous cache
+        if not coordinator_data:
+            return self._cached_capability_data
+
         # Check if cache is valid for current coordinator data (use data object id as cache key)
-        current_data_id = id(self.coordinator.data)
+        current_data_id = id(coordinator_data)
         if self._cache_coordinator_update == current_data_id:
             return self._cached_capability_data
 
         # Cache miss - fetch and cache the data
-        self._cached_capability_data = self._get_capability_data(self._capability_name)
-        self._cache_coordinator_update = current_data_id
+        new_capability_data = self._get_capability_data(self._capability_name)
+        if new_capability_data is not None:
+            # Update cache with new valid data
+            self._cached_capability_data = new_capability_data
+            self._cache_coordinator_update = current_data_id
+        elif self._cached_capability_data is None:
+            # No previous cache and no new data - clear cache
+            self._cache_coordinator_update = current_data_id
+
         return self._cached_capability_data
 
     @property
@@ -629,15 +665,32 @@ class TibberDataAttributeEntity(TibberDataDeviceEntity):
 
     @property
     def attribute_data(self) -> Optional[Dict[str, Any]]:
-        """Get attribute data with caching per coordinator update."""
+        """Get attribute data with caching per coordinator update.
+
+        Maintains cached data during coordinator transitions to prevent
+        flickering unavailability during updates.
+        """
+        coordinator_data = self.coordinator.data
+
+        # If no coordinator data, return previous cache
+        if not coordinator_data:
+            return self._cached_attribute_data
+
         # Check if cache is valid for current coordinator data (use data object id as cache key)
-        current_data_id = id(self.coordinator.data)
+        current_data_id = id(coordinator_data)
         if self._attribute_cache_coordinator_update == current_data_id:
             return self._cached_attribute_data
 
         # Cache miss - fetch and cache the data
-        self._cached_attribute_data = self._get_attribute_data(self._attribute_path)
-        self._attribute_cache_coordinator_update = current_data_id
+        new_attribute_data = self._get_attribute_data(self._attribute_path)
+        if new_attribute_data is not None:
+            # Update cache with new valid data
+            self._cached_attribute_data = new_attribute_data
+            self._attribute_cache_coordinator_update = current_data_id
+        elif self._cached_attribute_data is None:
+            # No previous cache and no new data - clear cache
+            self._attribute_cache_coordinator_update = current_data_id
+
         return self._cached_attribute_data
 
     @property
