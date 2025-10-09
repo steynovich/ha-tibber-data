@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.33] - 2025-10-09
+
+### Fixed
+- **Sensor Availability**: Fixed sensors flickering unavailable during normal coordinator refresh cycles
+  - Sensors no longer briefly become unavailable every 60 seconds during data updates
+  - Improved cache resilience to maintain previous data during coordinator transitions
+  - Changed availability check from `coordinator.data` to `coordinator.last_update_success`
+  - Leverages Home Assistant's `CoordinatorEntity` built-in state management
+  - Sensors remain available with last known good data during transient network errors
+
+### Changed
+- **Entity Data Caching**: Enhanced caching logic for `device_data`, `capability_data`, and `attribute_data`
+  - Cache now maintains previous valid data when coordinator.data is None or missing expected data
+  - Only updates cache when new valid data is available
+  - Prevents brief None returns during coordinator data object transitions
+  - Improves stability and user experience during normal operation
+
+### Technical
+- Updated `TibberDataEntity.available` property to use `last_update_success`
+- Updated `device_data` property with resilient caching that maintains previous data
+- Updated `capability_data` property with resilient caching that maintains previous data
+- Updated `attribute_data` property with resilient caching that maintains previous data
+- Updated test suite to reflect new cache persistence behavior
+- All 125 tests pass
+- All ruff checks pass
+
 ## [1.0.32] - 2025-10-09
 
 ### Fixed
