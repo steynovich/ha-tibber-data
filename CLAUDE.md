@@ -103,7 +103,7 @@ pytest tests/test_coordinator.py # Test data coordinator
 - 2025-10-08: Fixed "no_name" entity ID prefix issue - case-insensitive handling of invalid device names with proper fallback to manufacturer/model
 - 2025-10-08: Fixed battery device class detection - only percentage sensors with battery/storage-related keywords get battery device class, preventing power flow percentages from being incorrectly identified as battery sensors
 - 2025-10-08: Fixed entity availability during temporary failures - entities now remain available with cached data when coordinator updates fail temporarily (network issues, API timeouts), only becoming unavailable when device is actually offline
-- 2025-10-08: Fixed periodic energy flow sensors becoming unavailable at period boundaries - hourly/daily/weekly/monthly sensors now use TOTAL state class instead of TOTAL_INCREASING, preventing unavailability when values reset to 0
+- 2025-10-09: Fixed periodic energy flow sensors becoming unavailable at period boundaries - hourly/daily/weekly/monthly/yearly sensors now have NO state_class (instead of TOTAL or TOTAL_INCREASING), preventing unavailability when values reset to 0 at period boundaries
 - 2025-10-08: Removed device_online attribute from capability entities - cleaner entity attributes, online status reflected through availability only
 - 2025-10-08: Updated test suite to match removal of device_online attribute
 
@@ -152,7 +152,7 @@ The integration automatically assigns Home Assistant device classes based on sen
 | Unit | Device Class | State Class | Notes |
 |------|--------------|-------------|-------|
 | W, kW | `power` | `measurement` | Power sensors (charging, solar, load) |
-| Wh, kWh | `energy` | `total` | Energy sensors (flow, storage, production) |
+| Wh, kWh | `energy` | `total` or none | Storage/lifetime totals use `total`, periodic sensors use none |
 | % | `battery` | `measurement` | Only for battery/storage sensors (stateOfCharge, battery.level) |
 | % | none | none | Power flow percentages (distribution ratios) |
 | °C, °F | `temperature` | `measurement` | Temperature sensors |
@@ -162,7 +162,8 @@ The integration automatically assigns Home Assistant device classes based on sen
 | string | `enum` | none | Status sensors (charging, connector, connectivity) |
 
 **Important Notes:**
-- All energy sensors (kWh/Wh) use `TOTAL` state class (not `TOTAL_INCREASING`) to allow periodic resets and storage fluctuations
+- **Periodic energy sensors** (containing `.hour.`, `.day.`, `.week.`, `.month.`, `.year.`) have **NO state_class** to allow resets to 0 at period boundaries
+- **Non-periodic energy sensors** (storage levels, lifetime totals) use `TOTAL` state class to allow fluctuations
 - Battery device class only assigned to percentage sensors with battery/storage keywords in capability name
 - ENUM sensors (string values) automatically get title case formatting ("Charging" not "charging")
 

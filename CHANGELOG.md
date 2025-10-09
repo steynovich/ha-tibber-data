@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.32] - 2025-10-09
+
+### Fixed
+- **Periodic Energy Sensors**: Fixed sensors becoming unavailable when resetting to 0 at period boundaries
+  - Periodic energy sensors (`.hour.`, `.day.`, `.week.`, `.month.`, `.year.`) now have **NO state_class**
+  - Allows hourly/daily/weekly/monthly energy flow sensors to reset to 0 without becoming unavailable
+  - Non-periodic energy sensors (storage levels, lifetime totals) continue using `TOTAL` state_class
+  - Examples affected: `energyFlow.hour.battery.charged`, `energyFlow.day.grid.imported`, `energyFlow.week.solar.produced`
+  - Examples unaffected: `storage.availableEnergy` (uses `TOTAL` state_class)
+- **Charging Sensors**: Fixed charging current/voltage sensors incorrectly marked as diagnostic
+  - Charging current (A) and voltage (V) sensors are now shown as normal operational sensors
+  - Other voltage/current sensors (non-charging) remain diagnostic
+  - Examples affected: `charging.current.max`, `charging.current.offlineFallback`
+  - Improves visibility of key EV charger operational metrics
+
+### Changed
+- **State Class Assignment**: Improved logic for determining sensor state classes
+  - Periodic energy sensors check for period indicators (`.hour.`, `.day.`, etc.) before assigning state_class
+  - Non-periodic energy sensors (storage, lifetime totals) use `TOTAL` state_class for fluctuation support
+- **Entity Categories**: Refined diagnostic classification logic
+  - Charging-related sensors (containing "charging" or "charge") are never marked as diagnostic
+  - Voltage/current sensors only marked as diagnostic when not charging-related
+
+### Migration Notes
+- **Existing installations must remove and re-add the integration** to update state_class for existing sensors
+- Home Assistant caches state_class in entity registry - code changes don't update existing entities
+- Migration steps:
+  1. Update to v1.0.32 via HACS
+  2. Remove integration: Settings → Devices & Services → Tibber Data → ⋮ → Delete
+  3. Re-add integration: Settings → Devices & Services → Add Integration → Tibber Data
+  4. Re-authenticate with Tibber account
+- Statistics/history data will be preserved (stored separately from entity registry)
+
+### Technical
+- Updated `_infer_state_class_from_value()` to detect periodic energy sensors and return `None`
+- Updated `entity_category` property to exclude charging-related sensors from diagnostic classification
+- Updated documentation in CLAUDE.md and README.md with new state_class behavior
+- All sample devices verified: zappi.json (EV charger), pv1.json (solar inverter)
+
 ## [1.0.31] - 2025-10-08
 
 ### Added

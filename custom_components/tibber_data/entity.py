@@ -450,16 +450,22 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
     @property
     def entity_category(self) -> Optional[EntityCategory]:
         """Return the entity category for diagnostic capabilities."""
+        capability_name_lower = self._capability_name.lower()
+
+        # Primary operational metrics should NOT be diagnostic
+        # Charging current/voltage are operational metrics for EV chargers
+        operational_keywords = ["charging", "charge"]
+        if any(keyword in capability_name_lower for keyword in operational_keywords):
+            return None
+
         # Capabilities that are considered diagnostic (technical/troubleshooting info)
         diagnostic_keywords = [
             "signal", "rssi", "wifi", "lqi", "snr",  # Connectivity metrics
-            "voltage", "current", "frequency",  # Electrical diagnostics
+            "voltage", "current", "frequency",  # Electrical diagnostics (only if not charging-related)
             "firmware", "version", "update",  # Software info
             "uptime", "runtime", "cycles",  # Usage stats
             "error", "warning", "status_code",  # Error tracking
         ]
-
-        capability_name_lower = self._capability_name.lower()
 
         # Check if capability name contains diagnostic keywords
         if any(keyword in capability_name_lower for keyword in diagnostic_keywords):

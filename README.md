@@ -153,7 +153,9 @@ The integration automatically assigns appropriate Home Assistant device classes 
 | dBm | `signal_strength` | WiFi/Cellular Signal Strength |
 | string | `enum` | Charging Status, Connector Status, Connectivity Status |
 
-All energy sensors (kWh/Wh) use `TOTAL` state class, allowing periodic values to reset and storage values to fluctuate without becoming unavailable.
+Energy sensors use different state classes based on their type:
+- **Periodic energy sensors** (`.hour.`, `.day.`, `.week.`, `.month.`, `.year.`) have **no state class** - allows resets to 0 at period boundaries
+- **Storage/lifetime energy sensors** use `TOTAL` state class - allows fluctuations without becoming unavailable
 
 **Attribute Sensors** (from device attributes):
 - **VIN Number** - Vehicle identification number (diagnostic)
@@ -328,17 +330,18 @@ If sensors intermittently become unavailable during brief network issues:
 
 If hourly, daily, weekly, or monthly energy flow sensors become unavailable at the top of the hour/day/week/month:
 
-- **Cause**: Sensors with `TOTAL_INCREASING` state class cannot have decreasing values (e.g., resetting from 100 Wh → 0 Wh)
-- **Recent Fix (v1.0.28+)**: All energy sensors (kWh/Wh) now use `TOTAL` state class
-  - Allows periodic sensors to reset to 0 and storage sensors to fluctuate without becoming unavailable
-  - Affects ALL energy sensors: `energyFlow.*`, `storage.*`, etc.
-  - Examples: Battery Charged (Hour), Grid Imported (Day), Solar Produced (Week), Available Energy
+- **Cause**: Sensors with state_class cannot properly handle resets to 0 at period boundaries
+- **Recent Fix (latest version)**: Periodic energy sensors now have **NO state_class**
+  - Periodic sensors (`.hour.`, `.day.`, `.week.`, `.month.`, `.year.`) have no state_class - allows resets to 0
+  - Storage/lifetime sensors keep `TOTAL` state_class - allows fluctuations
+  - Examples affected: Battery Charged (Hour), Grid Imported (Day), Solar Produced (Week)
+  - Examples unaffected: Available Energy, Storage Level (these use `TOTAL` state_class)
 - **Solution for existing installations**:
-  1. Update to v1.0.28 via HACS
+  1. Update to latest version via HACS
   2. **Remove the integration**: Settings → Devices & Services → Tibber Data → ⋮ → Delete
   3. **Re-add the integration**: Settings → Devices & Services → Add Integration → Tibber Data
   4. Re-authenticate with your Tibber account
-  5. All entities will be recreated with correct `TOTAL` state class
+  5. All entities will be recreated with correct state_class configuration
 - **Why removal is needed**: Home Assistant caches the state class in the entity registry. Simply restarting won't update existing entities.
 - **Note**: Your statistics history will be preserved - Home Assistant maintains historical data separately from entities
 

@@ -151,18 +151,25 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
             # String values and None should not have a state class
             return None
 
-        # Energy units (kWh, Wh) should use TOTAL state class
-        # All Tibber Data API energy sensors are periodic (reset at boundaries) or storage (can fluctuate)
-        # None are lifetime cumulative counters, so TOTAL_INCREASING is not appropriate
+        capability_lower = capability_name.lower()
+
+        # Periodic energy sensors (hourly, daily, weekly, monthly) should have NO state class
+        # These reset to 0 at period boundaries and should not be treated as cumulative totals
+        if any(period in capability_lower for period in [".hour.", ".day.", ".week.", ".month.", ".year."]):
+            if unit in ["kWh", "Wh"] or "energy" in capability_lower:
+                return None
+
+        # Non-periodic energy units (kWh, Wh) use TOTAL state class
+        # These are storage levels or lifetime totals that can increase or decrease
         if unit in ["kWh", "Wh"]:
             return SensorStateClass.TOTAL
 
         # Other energy-related capabilities without energy units also use TOTAL
-        if "energy" in capability_name.lower():
+        if "energy" in capability_lower:
             return SensorStateClass.TOTAL
 
         # Power, temperature, battery level are measurements
-        if any(keyword in capability_name.lower() for keyword in ["power", "temperature", "battery", "level", "current", "voltage", "signal"]):
+        if any(keyword in capability_lower for keyword in ["power", "temperature", "battery", "level", "current", "voltage", "signal"]):
             return SensorStateClass.MEASUREMENT
 
         # Default to measurement for numeric values
