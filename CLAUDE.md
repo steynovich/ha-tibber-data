@@ -108,6 +108,8 @@ pytest tests/test_coordinator.py # Test data coordinator
 - 2025-10-08: Removed device_online attribute from capability entities - cleaner entity attributes, online status reflected through availability only
 - 2025-10-08: Updated test suite to match removal of device_online attribute
 - 2025-10-10: Fixed entity availability after Home Assistant restart - simplified availability logic to trust cached/coordinator data and device online status, removing dependency on last_update_success flag that could cause false unavailability after restart
+- 2025-10-10: Fixed entity ID naming consistency - suggested_object_id now uses formatted display names matching entity name, preventing Home Assistant from suggesting different entity_ids when recreating entities, resulting in more readable entity_ids (e.g., battery_from_grid_hour instead of energy_flow_hour_battery_source_grid)
+- 2025-10-10: Improved API client encapsulation - added public set_access_token() method to replace direct private attribute access, improving code maintainability and following proper encapsulation principles
 
 ## EV Support Features
 

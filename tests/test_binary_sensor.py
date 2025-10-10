@@ -303,7 +303,7 @@ class TestTibberDataBinarySensor:
         assert sensor.suggested_object_id == "tibber_data_smart_charger_is_online"
 
     def test_suggested_object_id_format(self, mock_coordinator):
-        """Test that suggested_object_id uses device slug and lowercase attribute path."""
+        """Test that suggested_object_id uses device slug and attribute display name."""
         sensor = TibberDataAttributeBinarySensor(
             coordinator=mock_coordinator,
             device_id="device-123",
@@ -311,8 +311,9 @@ class TestTibberDataBinarySensor:
             attribute_name="Online"
         )
 
-        # Should use device name slug with attribute path
-        assert sensor.suggested_object_id == "tibber_data_test_ev_connectivity_online"
+        # Should use device name slug with attribute display name (not path)
+        # This ensures consistency with Home Assistant's entity_id suggestions
+        assert sensor.suggested_object_id == "tibber_data_test_ev_online"
 
     def test_different_device_types_binary_sensors(self, mock_coordinator):
         """Test binary sensors for different device types."""

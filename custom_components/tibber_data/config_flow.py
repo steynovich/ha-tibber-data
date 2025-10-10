@@ -65,7 +65,7 @@ class TibberDataFlowHandler(
             _LOGGER.error("No access token found in OAuth data: %s", data.keys())
             raise Exception("No access token received from OAuth flow")
 
-        client._access_token = access_token
+        client.set_access_token(access_token)
         _LOGGER.debug("Successfully extracted access token from OAuth data")
 
         try:

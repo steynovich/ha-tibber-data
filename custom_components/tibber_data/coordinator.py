@@ -115,7 +115,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
         """Fetch data from API endpoint."""
         try:
             # Get current access token
-            self.client._access_token = await self._get_access_token()
+            self.client.set_access_token(await self._get_access_token())
 
             # Fetch homes and devices
             homes_data, devices_data = await self.client.get_homes_with_devices()
@@ -228,7 +228,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
 
             # Ensure we have a valid token before making API call
             try:
-                self.client._access_token = await self._get_access_token()
+                self.client.set_access_token(await self._get_access_token())
             except UpdateFailed as err:
                 _LOGGER.error("Failed to get valid token for device update: %s", err)
                 return False

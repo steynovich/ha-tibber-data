@@ -264,8 +264,8 @@ class TestTibberDataSensor:
         assert sensor.native_value == -45
         assert sensor.native_unit_of_measurement == "dBm"
         assert sensor.device_class == "signal_strength"
-        # Check suggested_object_id format
-        assert sensor.suggested_object_id == "tibber_data_test_device_signal_strength"
+        # Check suggested_object_id format - uses formatted display name
+        assert sensor.suggested_object_id == "tibber_data_test_device_wi_fi_signal_strength"
 
     def test_suggested_object_id_with_camelcase(self, mock_coordinator):
         """Test that suggested_object_id properly converts camelCase to snake_case."""
@@ -284,8 +284,8 @@ class TestTibberDataSensor:
             capability_name="storage_availableEnergy"
         )
 
-        # Should convert camelCase to snake_case
-        assert sensor.suggested_object_id == "tibber_data_test_device_storage_available_energy"
+        # Should use formatted display name from API (without "storage_" prefix)
+        assert sensor.suggested_object_id == "tibber_data_test_device_available_energy"
         assert sensor.name == "Test Device Available Energy"
 
     def test_enum_sensor_string_values(self, mock_coordinator):

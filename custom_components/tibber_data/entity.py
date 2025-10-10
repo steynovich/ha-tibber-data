@@ -471,9 +471,16 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
 
     @property
     def suggested_object_id(self) -> str:
-        """Return suggested object_id (entity_id without domain)."""
+        """Return suggested object_id (entity_id without domain).
+
+        Uses the formatted display name to ensure consistency with Home Assistant's
+        auto-generated entity_id suggestions when recreating entities.
+        """
         device_slug = self._get_device_slug()
-        capability_slug = self._slugify_capability_name(self._capability_name)
+        # Use the formatted display name instead of raw capability name
+        # This ensures entity_id matches what HA would suggest from the name
+        capability_display = self._get_capability_display_name()
+        capability_slug = self._slugify_capability_name(capability_display)
         return f"tibber_data_{device_slug}_{capability_slug}"
 
     @property
@@ -703,11 +710,17 @@ class TibberDataAttributeEntity(TibberDataDeviceEntity):
 
     @property
     def suggested_object_id(self) -> str:
-        """Return suggested object_id (entity_id without domain)."""
+        """Return suggested object_id (entity_id without domain).
+
+        Uses the attribute name (display name) to ensure consistency with Home Assistant's
+        auto-generated entity_id suggestions when recreating entities.
+        """
         device_slug = self._get_device_slug()
-        # Apply slugification to handle compound words like 'isonline' -> 'is_online'
-        path_slug = self._slugify_capability_name(self._attribute_path.replace(".", "_"))
-        return f"tibber_data_{device_slug}_{path_slug}"
+        # Use the attribute name (display name) instead of raw attribute path
+        # This ensures entity_id matches what HA would suggest from the name
+        # _entity_name_suffix contains the attribute_name passed to constructor
+        attribute_slug = self._slugify_capability_name(self._entity_name_suffix)
+        return f"tibber_data_{device_slug}_{attribute_slug}"
 
     @property
     def available(self) -> bool:

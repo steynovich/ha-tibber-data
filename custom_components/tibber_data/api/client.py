@@ -58,6 +58,10 @@ class TibberDataClient:
         """Set aiohttp session."""
         self._session = session
 
+    def set_access_token(self, access_token: str) -> None:
+        """Set access token for authenticated requests."""
+        self._access_token = access_token
+
     def set_oauth_session(self, oauth_session: TibberOAuthSession) -> None:
         """Set OAuth2 session for authenticated requests."""
         self._oauth_session = oauth_session

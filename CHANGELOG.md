@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.35] - 2025-10-10
+
+### Fixed
+- **Entity ID Naming Consistency**: Fixed entity_id mismatches when recreating entities
+  - `suggested_object_id` now uses formatted display names instead of raw API capability names
+  - Prevents Home Assistant from suggesting different entity_ids when recreating entities
+  - Results in more readable entity_ids (e.g., `battery_from_grid_hour` instead of `energy_flow_hour_battery_source_grid`)
+  - Applies to both capability entities (sensors) and attribute entities (binary_sensors)
+  - Ensures consistency between entity `name` and `suggested_object_id` properties
+
+### Changed
+- **API Client Encapsulation**: Improved access token management
+  - Added public `set_access_token()` method to TibberDataClient
+  - Replaced all direct `_access_token` private attribute access with public method
+  - Better encapsulation and maintainability
+  - Affects coordinator and config_flow modules
+
+### Breaking Changes
+⚠️ **Important**: This release changes entity_ids to use more readable formats. When you update:
+
+**What happens**:
+- Existing entity_ids remain unchanged (Home Assistant preserves them)
+- New entities or recreated entities will use the new, more readable format
+- If you remove and re-add the integration, all entities will get the new readable entity_ids
+
+**Impact**:
+- Old: `sensor.tibber_data_homevolt_teg06_energy_flow_hour_battery_source_grid`
+- New: `sensor.tibber_data_homevolt_teg06_battery_from_grid_hour`
+
+**Migration**:
+- No action required for existing installations (entity_ids are preserved)
+- If you recreate entities, update any automations/dashboards that reference the old entity_ids
+- The new format is significantly more readable and consistent
+
+### Technical
+- Updated `TibberDataCapabilityEntity.suggested_object_id` to use `_get_capability_display_name()`
+- Updated `TibberDataAttributeEntity.suggested_object_id` to use `_entity_name_suffix`
+- Added `TibberDataClient.set_access_token()` public method
+- Updated 3 locations to use new public method instead of private attribute access
+- All 125 tests pass
+- All ruff and mypy checks pass
+- Updated test assertions to reflect new entity_id format
+
 ## [1.0.34] - 2025-10-10
 
 ### Fixed
