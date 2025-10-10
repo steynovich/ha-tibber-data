@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.34] - 2025-10-10
+
+### Fixed
+- **Entity Availability After Restart**: Fixed entities becoming unavailable after Home Assistant restart
+  - Simplified availability logic to trust coordinator/cached data and device online status
+  - Removed dependency on `last_update_success` flag that could cause false unavailability
+  - Entities now available as soon as coordinator has data, regardless of update success state
+  - Prevents false unavailability during startup timing issues or coordinator transitions
+  - More predictable and robust availability behavior across all scenarios
+
+### Changed
+- **Availability Logic Simplification**: Streamlined entity availability determination
+  - Entity is available if: device data exists (coordinator or cache) AND device is online
+  - Removed complex checking of `last_update_success` which could be unreliable after restarts
+  - Trusts cached data to maintain availability during transient issues
+  - Cleaner, more maintainable code with fewer edge cases
+
+### Technical
+- Updated `TibberDataEntity.available` property to use simplified logic
+- Entity availability now only checks device data existence and online status
+- Removes race conditions between coordinator first refresh and entity initialization
+- All 125 tests pass
+- All ruff and mypy checks pass
+- Backward compatible - no breaking changes
+
 ## [1.0.33] - 2025-10-09
 
 ### Fixed

@@ -107,6 +107,7 @@ pytest tests/test_coordinator.py # Test data coordinator
 - 2025-10-09: Fixed sensors flickering unavailable during coordinator refresh - changed availability check to use last_update_success instead of coordinator.data, and enhanced cache resilience to maintain previous data during transitions, eliminating brief unavailability every 60 seconds
 - 2025-10-08: Removed device_online attribute from capability entities - cleaner entity attributes, online status reflected through availability only
 - 2025-10-08: Updated test suite to match removal of device_online attribute
+- 2025-10-10: Fixed entity availability after Home Assistant restart - simplified availability logic to trust cached/coordinator data and device online status, removing dependency on last_update_success flag that could cause false unavailability after restart
 
 ## EV Support Features
 
