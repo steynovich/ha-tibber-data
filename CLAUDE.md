@@ -113,6 +113,8 @@ pytest tests/test_coordinator.py # Test data coordinator
 - 2025-10-13: Fixed entities becoming unavailable over time - coordinator now creates new data objects (instead of modifying in-place) when updating devices, properly invalidating entity caches and preventing stale cached data from causing unavailability
 - 2025-10-13: Fixed powerFlow percentage sensor values - API returns decimal ratios (0.9) which are now correctly converted to percentages (90%) for display, applies only to sensors starting with "powerFlow." prefix
 - 2025-10-13: Fixed entities becoming permanently unavailable after restart - removed buggy cache validation logic that marked cache as valid even when no data was available, allowing entities to recover on subsequent coordinator updates
+- 2025-10-13: Fixed stale cache causing entity unavailability - cache now properly tracks coordinator data updates and keeps previous valid data when device/capability/attribute temporarily missing from new coordinator data, preventing entities from becoming unavailable due to timing issues between coordinator updates
+- 2025-10-13: Fixed entities becoming permanently unavailable at hour boundaries - entities now remain available with cached capability data when API temporarily doesn't return capabilities (e.g., hourly energy sensors at top of hour), preventing permanent unavailability that persisted even after restart until integration was removed and re-added
 
 ## EV Support Features
 

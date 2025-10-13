@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.39] - 2025-10-13
+
+### Fixed
+- **Critical: Entities Permanently Unavailable at Hour Boundaries**: Fixed entities becoming permanently unavailable when API temporarily doesn't return capabilities
+  - Root cause: When capabilities were temporarily missing from API responses (e.g., hourly energy sensors at top of hour), entities would become unavailable and NEVER recover, even after restart
+  - Bug scenario: Hour boundary hits → API doesn't return hourly capability → entity becomes unavailable → capability returns in next update but entity stays unavailable forever → only fix was to remove and re-add entire integration
+  - Impact: Entities could become permanently unavailable during normal operation, especially hourly/daily energy flow sensors at period boundaries
+  - Fix: Enhanced caching system that preserves capability data when temporarily missing from API, combined with improved availability check that trusts cached data
+  - Result: Entities remain available with last known good data when capabilities are temporarily absent from API responses
+  - Affects all capability sensors (numeric sensors, ENUM sensors, energy flow sensors)
+
+### Technical
+- Enhanced cache tracking in `TibberDataEntity.device_data` property - preserves device data when temporarily missing
+- Enhanced cache tracking in `TibberDataCapabilityEntity.capability_data` property - preserves capability data when temporarily missing
+- Enhanced cache tracking in `TibberDataAttributeEntity.attribute_data` property - preserves attribute data when temporarily missing
+- Updated `TibberDataCapabilityEntity.available` property to trust cached capability data
+- When data is missing but cache exists, mark coordinator data as "seen" but keep old cached data
+- Only retry fetching when no cache exists at all (new entities)
+- All 127 tests pass with no breaking changes
+
+### Impact
+- **Critical fix**: Resolves permanent unavailability issue that required removing and re-adding integration
+- Entities remain available during API response timing inconsistencies (hour/day/week/month boundaries)
+- Fixes issue where entities would never recover after becoming unavailable
+- No configuration changes required
+- No breaking changes
+- Significantly improves entity stability for time-based energy sensors
+
 ## [1.0.38] - 2025-10-13
 
 ### Fixed

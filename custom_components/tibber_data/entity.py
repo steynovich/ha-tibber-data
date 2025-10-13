@@ -48,17 +48,23 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
 
         # Cache miss - fetch and cache the data
         if "devices" not in coordinator_data:
-            # Keep previous cache if structure is invalid
-            pass  # Don't update cache, return old data below
+            # Keep previous cache if structure is invalid, but mark this data as seen
+            # so we don't keep checking on every property access
+            if self._cached_device_data is not None:
+                self._device_cache_coordinator_update = current_data_id
         else:
             new_device_data = coordinator_data["devices"].get(self._device_id)
             if new_device_data is not None:
-                # Update cache with new valid data
+                # Update cache with new valid data and mark as current
                 self._cached_device_data = new_device_data
                 self._device_cache_coordinator_update = current_data_id
-            # If device not found in new data but we have cache, keep it for stability
-            # If we have NO cache and NO new data, don't mark cache as valid
-            # This allows future updates to retry fetching the data
+            else:
+                # Device not found in new data
+                # If we have cached data, mark current data as seen but keep old cache
+                # This prevents returning None when device temporarily missing from coordinator
+                if self._cached_device_data is not None:
+                    self._device_cache_coordinator_update = current_data_id
+                # If no cache exists, don't mark as seen - keep trying on next access
 
         return self._cached_device_data
 
@@ -390,12 +396,16 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
         # Cache miss - fetch and cache the data
         new_capability_data = self._get_capability_data(self._capability_name)
         if new_capability_data is not None:
-            # Update cache with new valid data
+            # Update cache with new valid data and mark as current
             self._cached_capability_data = new_capability_data
             self._cache_coordinator_update = current_data_id
-        # If we have NO cache and NO new data, don't mark cache as valid
-        # This allows future coordinator updates to retry fetching the data
-        # instead of returning None forever
+        else:
+            # Capability not found in new data
+            # If we have cached data, mark current data as seen but keep old cache
+            # This prevents returning None when capability temporarily missing
+            if self._cached_capability_data is not None:
+                self._cache_coordinator_update = current_data_id
+            # If no cache exists, don't mark as seen - keep trying on next access
 
         return self._cached_capability_data
 
@@ -484,11 +494,23 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
 
     @property
     def available(self) -> bool:
-        """Return True if capability is available."""
+        """Return True if capability is available.
+
+        Entity is available if:
+        1. Device is available (online and has device data), AND
+        2. We have capability data (either fresh or cached)
+
+        This allows entities to remain available with cached data when capabilities
+        are temporarily missing from API responses (e.g., at hour boundaries).
+
+        Note: The capability_data property returns cached data if the capability
+        is temporarily missing, so this check will keep entities available as long
+        as they once had valid data.
+        """
         if not super().available:
             return False
 
-        # Capability is available if it has data
+        # Entity is available if we have capability data (fresh or cached)
         return self.capability_data is not None
 
     @property
@@ -692,12 +714,16 @@ class TibberDataAttributeEntity(TibberDataDeviceEntity):
         # Cache miss - fetch and cache the data
         new_attribute_data = self._get_attribute_data(self._attribute_path)
         if new_attribute_data is not None:
-            # Update cache with new valid data
+            # Update cache with new valid data and mark as current
             self._cached_attribute_data = new_attribute_data
             self._attribute_cache_coordinator_update = current_data_id
-        # If we have NO cache and NO new data, don't mark cache as valid
-        # This allows future coordinator updates to retry fetching the data
-        # instead of returning None forever
+        else:
+            # Attribute not found in new data
+            # If we have cached data, mark current data as seen but keep old cache
+            # This prevents returning None when attribute temporarily missing
+            if self._cached_attribute_data is not None:
+                self._attribute_cache_coordinator_update = current_data_id
+            # If no cache exists, don't mark as seen - keep trying on next access
 
         return self._cached_attribute_data
 
