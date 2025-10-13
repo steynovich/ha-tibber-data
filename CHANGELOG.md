@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.38] - 2025-10-13
+
+### Fixed
+- **Critical: Entity Cache Recovery After Restart**: Fixed entities becoming permanently unavailable after restart
+  - Root cause: Cache validation logic incorrectly marked cache as "valid" even when no data was available
+  - Bug scenario: Entity starts fresh → capability temporarily missing → cache marked valid with None → entity stays unavailable forever
+  - Impact: Entities could never recover if capability data was temporarily missing during Home Assistant restart or integration reload
+  - Fix: Removed buggy cache validation that marked cache as valid without data
+  - Result: Entities now automatically recover on next coordinator update when data becomes available
+  - Affects all entity types: capability sensors, attribute sensors, and binary sensors
+
+### Technical
+- Fixed cache validation logic in `TibberDataEntity.device_data` property
+- Fixed cache validation logic in `TibberDataCapabilityEntity.capability_data` property
+- Fixed cache validation logic in `TibberDataAttributeEntity.attribute_data` property
+- Removed lines that set `_cache_coordinator_update` when no data is available
+- Added comprehensive test `test_entity_recovers_from_temporary_missing_data_after_restart`
+- Cache is now only marked as valid when real data is successfully cached
+- All 127 tests pass with new regression test
+
+### Impact
+- **Critical fix**: All users should upgrade to prevent permanent entity unavailability after restart
+- Entities will now automatically recover from temporary API issues during initialization
+- No configuration changes required
+- No breaking changes
+- Fixes issue where entities would show "unavailable" after restart and never recover
+
 ## [1.0.37] - 2025-10-13
 
 ### Fixed

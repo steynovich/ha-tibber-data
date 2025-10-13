@@ -314,3 +314,99 @@ class TestEntityCaching:
 
         # Should be a different cached object
         assert cap_data_1 is not cap_data_2
+
+    def test_entity_recovers_from_temporary_missing_data_after_restart(self, mock_coordinator):
+        """Test that entities recover when capability temporarily missing after restart.
+
+        This tests the fix for entities becoming permanently unavailable after restart
+        when capability data is temporarily missing from the first API response.
+
+        Bug scenario:
+        1. Entity created (fresh start, no cache)
+        2. First coordinator update: capability missing from API
+        3. Old bug: Cache was marked as valid with None data
+        4. Second coordinator update: capability present but cache returns None forever
+
+        Fix: Don't mark cache as valid when we have no data to cache.
+        """
+        # Simulate fresh entity creation (like after restart)
+        sensor = TibberDataCapabilitySensor(
+            coordinator=mock_coordinator,
+            device_id="device-123",
+            capability_name="battery_level"
+        )
+
+        # Verify entity has no cache initially
+        assert sensor._cached_capability_data is None
+        assert sensor._cache_coordinator_update is None
+
+        # First coordinator update: capability temporarily missing (API glitch during restart)
+        mock_coordinator.data = {
+            "devices": {
+                "device-123": {
+                    "id": "device-123",
+                    "name": "Test Device",
+                    "home_id": "home-456",
+                    "online": True,
+                    "capabilities": [
+                        # battery_level capability is MISSING
+                    ]
+                }
+            },
+            "homes": {
+                "home-456": {
+                    "id": "home-456",
+                    "displayName": "Test Home"
+                }
+            }
+        }
+
+        # Entity tries to access capability data but it's missing
+        cap_data_first = sensor.capability_data
+        assert cap_data_first is None  # No data available
+
+        # CRITICAL: Cache should NOT be marked as valid when we have no data
+        # This is the bug fix - previously _cache_coordinator_update was set here
+        assert sensor._cache_coordinator_update is None, \
+            "Cache should not be marked valid when no data is available"
+
+        # Second coordinator update: capability is now present (API recovered)
+        mock_coordinator.data = {
+            "devices": {
+                "device-123": {
+                    "id": "device-123",
+                    "name": "Test Device",
+                    "home_id": "home-456",
+                    "online": True,
+                    "capabilities": [
+                        {
+                            "name": "battery_level",
+                            "displayName": "Battery Level",
+                            "value": 85.0,
+                            "unit": "%",
+                            "lastUpdated": "2025-09-18T10:30:00Z"
+                        }
+                    ]
+                }
+            },
+            "homes": {
+                "home-456": {
+                    "id": "home-456",
+                    "displayName": "Test Home"
+                }
+            }
+        }
+
+        # Entity should now successfully fetch the capability data
+        cap_data_second = sensor.capability_data
+        assert cap_data_second is not None, \
+            "Entity should recover and fetch data on next coordinator update"
+        assert cap_data_second["value"] == 85.0
+
+        # Cache should now be valid with real data
+        assert sensor._cached_capability_data is not None
+        assert sensor._cache_coordinator_update == id(mock_coordinator.data)
+
+        # Entity should now be available
+        assert sensor.available is True
+        assert sensor.native_value == 85.0

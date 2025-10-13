@@ -57,9 +57,8 @@ class TibberDataEntity(CoordinatorEntity[TibberDataUpdateCoordinator]):
                 self._cached_device_data = new_device_data
                 self._device_cache_coordinator_update = current_data_id
             # If device not found in new data but we have cache, keep it for stability
-            # Only clear cache if device was never found
-            elif self._cached_device_data is None:
-                self._device_cache_coordinator_update = current_data_id
+            # If we have NO cache and NO new data, don't mark cache as valid
+            # This allows future updates to retry fetching the data
 
         return self._cached_device_data
 
@@ -394,9 +393,9 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
             # Update cache with new valid data
             self._cached_capability_data = new_capability_data
             self._cache_coordinator_update = current_data_id
-        elif self._cached_capability_data is None:
-            # No previous cache and no new data - clear cache
-            self._cache_coordinator_update = current_data_id
+        # If we have NO cache and NO new data, don't mark cache as valid
+        # This allows future coordinator updates to retry fetching the data
+        # instead of returning None forever
 
         return self._cached_capability_data
 
@@ -696,9 +695,9 @@ class TibberDataAttributeEntity(TibberDataDeviceEntity):
             # Update cache with new valid data
             self._cached_attribute_data = new_attribute_data
             self._attribute_cache_coordinator_update = current_data_id
-        elif self._cached_attribute_data is None:
-            # No previous cache and no new data - clear cache
-            self._attribute_cache_coordinator_update = current_data_id
+        # If we have NO cache and NO new data, don't mark cache as valid
+        # This allows future coordinator updates to retry fetching the data
+        # instead of returning None forever
 
         return self._cached_attribute_data
 
