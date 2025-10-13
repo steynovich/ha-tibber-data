@@ -461,7 +461,8 @@ class TestTibberDataSensor:
                 capability_name="powerFlow.fromSolar"
             )
 
-            assert solar_flow_sensor.native_value == 0.9
+            # API returns 0.9 (decimal), should convert to 90.0 (percentage)
+            assert solar_flow_sensor.native_value == 90.0
             assert solar_flow_sensor.native_unit_of_measurement == "%"
             assert solar_flow_sensor.device_class is None  # No device class for power flow %
             assert solar_flow_sensor.state_class == "measurement"
@@ -473,7 +474,8 @@ class TestTibberDataSensor:
                 capability_name="powerFlow.fromGrid"
             )
 
-            assert grid_flow_sensor.native_value == 0.1
+            # API returns 0.1 (decimal), should convert to 10.0 (percentage)
+            assert grid_flow_sensor.native_value == 10.0
             assert grid_flow_sensor.native_unit_of_measurement == "%"
             assert grid_flow_sensor.device_class is None  # No device class for power flow %
             assert grid_flow_sensor.state_class == "measurement"

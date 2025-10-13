@@ -111,6 +111,7 @@ pytest tests/test_coordinator.py # Test data coordinator
 - 2025-10-10: Fixed entity ID naming consistency - suggested_object_id now uses formatted display names matching entity name, preventing Home Assistant from suggesting different entity_ids when recreating entities, resulting in more readable entity_ids (e.g., battery_from_grid_hour instead of energy_flow_hour_battery_source_grid)
 - 2025-10-10: Improved API client encapsulation - added public set_access_token() method to replace direct private attribute access, improving code maintainability and following proper encapsulation principles
 - 2025-10-13: Fixed entities becoming unavailable over time - coordinator now creates new data objects (instead of modifying in-place) when updating devices, properly invalidating entity caches and preventing stale cached data from causing unavailability
+- 2025-10-13: Fixed powerFlow percentage sensor values - API returns decimal ratios (0.9) which are now correctly converted to percentages (90%) for display, applies only to sensors starting with "powerFlow." prefix
 
 ## EV Support Features
 

@@ -247,6 +247,13 @@ class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
         if isinstance(value, (int, float)) and unit == "m" and "range" in self._capability_name.lower():
             return round(value / 1000, 1)  # Convert to km with 1 decimal place
 
+        # Convert decimal ratios to percentages for powerFlow distribution sensors
+        # API returns values like 0.9 (meaning 90%) for powerFlow distribution ratios
+        if isinstance(value, (int, float)) and unit == "%" and value <= 1.0:
+            # Only apply to capabilities that start with "powerFlow."
+            if self._capability_name.startswith("powerFlow.") and 0 <= value <= 1.0:
+                return round(value * 100, 1)  # Convert 0.9 to 90.0
+
         return value
 
     @property

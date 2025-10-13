@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.37] - 2025-10-13
+
+### Fixed
+- **PowerFlow Percentage Conversion**: Fixed powerFlow sensor values displaying as decimals instead of percentages
+  - API returns decimal ratios (0.0-1.0) for power flow distribution sensors
+  - Now automatically converts to percentages: 0.9 → 90.0%, 0.1 → 10.0%
+  - Only applies to capabilities starting with `powerFlow.` prefix
+  - Does NOT affect battery or other percentage sensors (they remain unchanged)
+  - Examples: `powerFlow.fromSolar`, `powerFlow.fromGrid`, `powerFlow.toBattery`
+
+### Technical
+- Updated `TibberDataCapabilitySensor.native_value` property in sensor.py
+- Added conversion logic: `round(value * 100, 1)` for `powerFlow.*` sensors with `%` unit
+- Conversion only applies when value is in 0-1 range
+- Updated test `test_powerflow_percentage_not_battery` with correct expected values
+- All 126 tests pass
+
+### Impact
+- Users with powerFlow sensors will see correct percentage values (90% instead of 0.9%)
+- No configuration changes required
+- Existing automations referencing these sensors may need adjustment if they expect decimal values
+- Battery percentage sensors and other percentage sensors are unaffected
+
 ## [1.0.36] - 2025-10-13
 
 ### Fixed
