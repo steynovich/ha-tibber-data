@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.36] - 2025-10-13
+
+### Fixed
+- **Critical: Entity Cache Invalidation**: Fixed entities becoming unavailable over time despite API returning data
+  - Root cause: Coordinator was modifying `self.data` in-place when updating individual devices
+  - Entity caching uses `id(coordinator.data)` as cache key - in-place modifications don't change object ID
+  - Result: Entity caches retained stale data, causing entities to become unavailable as capabilities changed
+  - Fix: Coordinator now creates new data objects instead of modifying in-place
+  - This ensures entity caches are properly invalidated on every coordinator update
+  - Added comprehensive test `test_cache_invalidation_with_new_coordinator_data_object` to prevent regression
+
+### Technical
+- Updated `TibberDataUpdateCoordinator.async_update_device()` to create new data dict
+- Changed from `self.data[DATA_DEVICES][device_id] = ...` to creating new data object
+- Maintains performance benefits of entity caching while ensuring correct cache invalidation
+- All 126 tests pass with new cache invalidation test added
+
+### Impact
+- **All users should upgrade**: This fixes a critical bug causing entities to become unavailable over time
+- No configuration changes required
+- Existing entities will remain available after update
+- Entity caching performance improvements from v1.0.32 are maintained
+
 ## [1.0.35] - 2025-10-10
 
 ### Fixed

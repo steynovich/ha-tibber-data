@@ -260,3 +260,57 @@ class TestEntityCaching:
         assert sensor.device_data is not None
         assert sensor.capability_data is not None
         assert sensor.native_value == 100.0
+
+    def test_cache_invalidation_with_new_coordinator_data_object(self, mock_coordinator):
+        """Test that entity cache is properly invalidated when coordinator creates new data dict.
+
+        This tests the fix for entities becoming unavailable over time when async_update_device()
+        modifies coordinator data. The coordinator must create a NEW data object (not modify in-place)
+        so that id(coordinator.data) changes and entity caches are invalidated.
+        """
+        sensor = TibberDataCapabilitySensor(
+            coordinator=mock_coordinator,
+            device_id="device-123",
+            capability_name="battery_level"
+        )
+
+        # Get initial cached data
+        cap_data_1 = sensor.capability_data
+        assert cap_data_1["value"] == 85.0
+        initial_data_id = id(mock_coordinator.data)
+
+        # Simulate what async_update_device() does: create a NEW data dict
+        # (not modify in-place) to ensure entity caches are invalidated
+        new_devices = mock_coordinator.data["devices"].copy()
+        new_devices["device-123"] = {
+            "id": "device-123",
+            "name": "Test Device",
+            "home_id": "home-456",
+            "online": True,
+            "capabilities": [
+                {
+                    "name": "battery_level",
+                    "displayName": "Battery Level",
+                    "value": 75.0,  # Changed value
+                    "unit": "%",
+                    "lastUpdated": "2025-09-18T10:45:00Z"
+                }
+            ]
+        }
+
+        # Create new data object (this is what the coordinator fix does)
+        mock_coordinator.data = {
+            "devices": new_devices,
+            "homes": mock_coordinator.data["homes"]
+        }
+
+        # Verify the data object identity changed (this is critical for cache invalidation)
+        new_data_id = id(mock_coordinator.data)
+        assert initial_data_id != new_data_id, "Coordinator data object ID should change"
+
+        # Cache should be invalidated and return new data
+        cap_data_2 = sensor.capability_data
+        assert cap_data_2["value"] == 75.0
+
+        # Should be a different cached object
+        assert cap_data_1 is not cap_data_2

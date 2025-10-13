@@ -267,7 +267,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                         "isDiagnostic": attribute.is_diagnostic
                     })
 
-                self.data[DATA_DEVICES][device_id] = {
+                updated_device_dict = {
                     "id": updated_device.device_id,
                     "external_id": updated_device.external_id,
                     "name": updated_device.name,
@@ -278,6 +278,16 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                     "lastSeen": updated_device.last_seen.isoformat() if updated_device.last_seen else None,
                     "capabilities": capabilities,
                     "attributes": attributes
+                }
+
+                # Create a new data dict to change object identity and invalidate entity caches
+                # This ensures entities pick up the updated device data
+                new_devices = self.data[DATA_DEVICES].copy()
+                new_devices[device_id] = updated_device_dict
+
+                self.data = {
+                    DATA_HOMES: self.data[DATA_HOMES],
+                    DATA_DEVICES: new_devices
                 }
 
                 # Notify listeners of the update
