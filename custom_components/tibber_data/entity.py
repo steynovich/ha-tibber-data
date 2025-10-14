@@ -399,13 +399,11 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
             # Update cache with new valid data and mark as current
             self._cached_capability_data = new_capability_data
             self._cache_coordinator_update = current_data_id
-        else:
-            # Capability not found in new data
-            # If we have cached data, mark current data as seen but keep old cache
-            # This prevents returning None when capability temporarily missing
-            if self._cached_capability_data is not None:
-                self._cache_coordinator_update = current_data_id
-            # If no cache exists, don't mark as seen - keep trying on next access
+        # else: Capability not found in new data
+        # DO NOT mark as seen - keep trying to fetch on each property access
+        # Return previous cached data to maintain availability
+        # This prevents entities from becoming unavailable when capabilities
+        # are temporarily missing from API responses (e.g., at hour boundaries)
 
         return self._cached_capability_data
 
@@ -717,13 +715,11 @@ class TibberDataAttributeEntity(TibberDataDeviceEntity):
             # Update cache with new valid data and mark as current
             self._cached_attribute_data = new_attribute_data
             self._attribute_cache_coordinator_update = current_data_id
-        else:
-            # Attribute not found in new data
-            # If we have cached data, mark current data as seen but keep old cache
-            # This prevents returning None when attribute temporarily missing
-            if self._cached_attribute_data is not None:
-                self._attribute_cache_coordinator_update = current_data_id
-            # If no cache exists, don't mark as seen - keep trying on next access
+        # else: Attribute not found in new data
+        # DO NOT mark as seen - keep trying to fetch on each property access
+        # Return previous cached data to maintain availability
+        # This prevents entities from becoming unavailable when attributes
+        # are temporarily missing from API responses
 
         return self._cached_attribute_data
 

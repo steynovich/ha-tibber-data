@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.40] - 2025-10-14
+
+### Fixed
+- **Entities Becoming Unavailable During Resets**: Fixed cache invalidation bug causing entities to become unavailable when capabilities are temporarily missing from API responses during resets (e.g., hourly sensors at hour boundaries)
+  - Root cause: When a capability was temporarily missing from an API response, the cache was marked as "seen" for that coordinator data object, preventing the entity from attempting to fetch fresh data on subsequent property accesses within the same update cycle
+  - Bug scenario: Hour boundary → API temporarily doesn't return hourly capability → cache marked as "seen" but returns old data → on next property access, cache "seen" check passes and returns stale data → if API continues to not return capability for multiple updates, entity eventually becomes unavailable
+  - Impact: Sensors (especially time-based energy sensors) could become unavailable during normal operation at period boundaries
+  - Fix: Modified caching logic to NOT mark cache as "seen" when capability/attribute is temporarily missing, allowing continuous retry of data fetching while still returning cached data to maintain availability
+  - Result: Entities continuously attempt to fetch fresh data when capability is missing, immediately recovering when capability reappears in API responses
+  - Affects all capability sensors and attribute sensors
+
+### Technical
+- Modified `TibberDataCapabilityEntity.capability_data` property - removed cache marking when capability data is not found
+- Modified `TibberDataAttributeEntity.attribute_data` property - removed cache marking when attribute data is not found
+- Cache now only marked as "seen" when fresh valid data is successfully retrieved
+- Maintains backward compatibility - still returns cached data when capability/attribute is missing
+- Slightly less efficient (re-fetches on each property access during update cycle when data missing), but prevents entities from becoming stuck unavailable
+- All 127 tests pass with no breaking changes
+
+### Impact
+- Improved entity reliability during API response inconsistencies
+- Entities recover faster when capabilities reappear after temporary absence
+- No configuration changes required
+- No breaking changes
+- Complements fixes in 1.0.39 for better overall entity availability
+
 ## [1.0.39] - 2025-10-13
 
 ### Fixed
