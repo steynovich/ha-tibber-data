@@ -396,9 +396,15 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
         # Cache miss - fetch and cache the data
         new_capability_data = self._get_capability_data(self._capability_name)
         if new_capability_data is not None:
-            # Update cache with new valid data and mark as current
-            self._cached_capability_data = new_capability_data
-            self._cache_coordinator_update = current_data_id
+            # Check if the capability has a valid value (not None)
+            # API sometimes returns capabilities with value: null during resets or transitions
+            new_value = new_capability_data.get("value")
+            if new_value is not None:
+                # Update cache with new valid data and mark as current
+                self._cached_capability_data = new_capability_data
+                self._cache_coordinator_update = current_data_id
+            # else: Capability exists but value is None - keep old cached data
+            # DO NOT mark as seen - keep trying to fetch on each property access
         # else: Capability not found in new data
         # DO NOT mark as seen - keep trying to fetch on each property access
         # Return previous cached data to maintain availability
@@ -712,9 +718,15 @@ class TibberDataAttributeEntity(TibberDataDeviceEntity):
         # Cache miss - fetch and cache the data
         new_attribute_data = self._get_attribute_data(self._attribute_path)
         if new_attribute_data is not None:
-            # Update cache with new valid data and mark as current
-            self._cached_attribute_data = new_attribute_data
-            self._attribute_cache_coordinator_update = current_data_id
+            # Check if the attribute has a valid value (not None)
+            # API sometimes returns attributes with value: null during transitions
+            new_value = new_attribute_data.get("value")
+            if new_value is not None:
+                # Update cache with new valid data and mark as current
+                self._cached_attribute_data = new_attribute_data
+                self._attribute_cache_coordinator_update = current_data_id
+            # else: Attribute exists but value is None - keep old cached data
+            # DO NOT mark as seen - keep trying to fetch on each property access
         # else: Attribute not found in new data
         # DO NOT mark as seen - keep trying to fetch on each property access
         # Return previous cached data to maintain availability

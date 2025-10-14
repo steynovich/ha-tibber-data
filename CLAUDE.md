@@ -116,6 +116,7 @@ pytest tests/test_coordinator.py # Test data coordinator
 - 2025-10-13: Fixed stale cache causing entity unavailability - cache now properly tracks coordinator data updates and keeps previous valid data when device/capability/attribute temporarily missing from new coordinator data, preventing entities from becoming unavailable due to timing issues between coordinator updates
 - 2025-10-13: Fixed entities becoming permanently unavailable at hour boundaries - entities now remain available with cached capability data when API temporarily doesn't return capabilities (e.g., hourly energy sensors at top of hour), preventing permanent unavailability that persisted even after restart until integration was removed and re-added
 - 2025-10-14: Fixed entities becoming unavailable during resets - modified cache invalidation logic to NOT mark cache as "seen" when capability/attribute is temporarily missing, allowing continuous retry of data fetching while maintaining availability with cached data, ensuring faster recovery when capabilities reappear in API responses
+- 2025-10-14: Fixed sensors saving null values - enhanced cache update logic to validate that values are not None before updating cache, preventing sensors from reporting null states to Home Assistant when API returns capabilities/attributes with value: null during resets or transitions, eliminating gaps in history data
 
 ## EV Support Features
 

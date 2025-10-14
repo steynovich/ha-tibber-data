@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.41] - 2025-10-14
+
+### Fixed
+- **Sensors Saving Null Values**: Fixed cache update logic to prevent storing null values when API returns capabilities/attributes with value: null
+  - Root cause: When API returns a capability with value: null (during resets or transitions), the cache was updated with this null data, causing sensors to report null states to Home Assistant
+  - Bug scenario: API returns capability with value: null → cache updated with null value → sensor reports null state → Home Assistant saves null in history database
+  - Impact: Sensors would show gaps in history data with null values, especially during period boundaries (hourly, daily resets)
+  - Fix: Enhanced caching logic to check if value inside capability/attribute data is None - if so, keep previous cached data with last valid value
+  - Result: Sensors maintain last valid value when API temporarily returns null values, preventing null states in history
+  - Affects all capability sensors and attribute sensors
+
+### Technical
+- Modified `TibberDataCapabilityEntity.capability_data` property - added value validation before cache update
+- Modified `TibberDataAttributeEntity.attribute_data` property - added value validation before cache update
+- Cache only updated when new data has non-None value
+- Uses identity check (`is not None`) to correctly accept falsy values like 0, False, or empty strings
+- Maintains backward compatibility with existing functionality
+- All 127 tests pass with no breaking changes
+
+### Impact
+- Eliminates null value gaps in sensor history data
+- Sensors maintain continuity during API response transitions
+- No configuration changes required
+- No breaking changes
+- Builds on fixes from 1.0.40 for comprehensive entity stability
+
 ## [1.0.40] - 2025-10-14
 
 ### Fixed
