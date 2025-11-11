@@ -206,9 +206,10 @@ class TestTibberDataSensor:
             capability_name="non_existent_capability"
         )
 
-        # Should handle gracefully
-        assert not sensor.available
-        assert sensor.native_value is None
+        # Should handle gracefully - entity is available but state is None
+        # This prevents "no longer provided" errors when capabilities are temporarily missing
+        assert sensor.available  # Device is online, so entity is available
+        assert sensor.native_value is None  # But state is None since capability doesn't exist
 
     def test_missing_device_handling(self, mock_coordinator):
         """Test handling of missing device data."""
@@ -219,8 +220,8 @@ class TestTibberDataSensor:
             capability_name="battery_level"
         )
 
-        # Should handle gracefully
-        assert not sensor.available
+        # Should handle gracefully - entity unavailable because device doesn't exist
+        assert not sensor.available  # Device not found, so entity is unavailable
         assert sensor.native_value is None
 
     @pytest.mark.asyncio

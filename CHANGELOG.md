@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.48] - 2025-11-11
+
+### Fixed
+- **Critical: Sensors Becoming Unavailable After Restart**: Fixed entities showing as unavailable when capabilities are missing from first coordinator update after restart
+  - Root cause: After restart, entities have no cached capability data. If the first coordinator update doesn't include a capability (e.g., hourly sensors at hour boundaries), the entity would become unavailable and show "no longer provided"
+  - Bug scenario: Restart HA → First coordinator update at hour boundary → Hourly capabilities not in API response → Entity marked unavailable → Entity stays unavailable forever
+  - Impact: Primarily affected hourly energy flow sensors (Grid Import Hour, Grid from Battery Hour, etc.) that reset at hour boundaries
+  - Fix: Changed availability logic to not require capability data - entity is available as long as device is online, state will be None until capability appears in API response
+  - Result: Entities remain available after restart even if their capability isn't in the first update, preventing "no longer provided" errors
+  - Affects all capability sensors (numeric sensors, ENUM sensors, energy flow sensors)
+
+### Technical
+- Modified `TibberDataCapabilityEntity.available` property in entity.py
+- Removed requirement for capability_data to exist for entity to be available
+- Entity now available as long as device is online (super().available returns True)
+- Entity state will be None if capability_data doesn't exist yet
+- Updated tests to match new expected behavior
+- All 128 tests pass with no breaking changes
+
+### Impact
+- **Critical fix**: Resolves entities becoming permanently unavailable after restart
+- No configuration changes required
+- No breaking changes to entity values
+- Entities may briefly show None state during first few seconds after restart until capability data populates
+- Significantly improves reliability for hourly/daily/weekly/monthly energy sensors
+
 ## [1.0.47] - 2025-11-11
 
 ### Changed

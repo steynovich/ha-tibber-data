@@ -500,22 +500,19 @@ class TibberDataCapabilityEntity(TibberDataDeviceEntity):
     def available(self) -> bool:
         """Return True if capability is available.
 
-        Entity is available if:
-        1. Device is available (online and has device data), AND
-        2. We have capability data (either fresh or cached)
+        Entity is available if device is available (online and has device data).
 
-        This allows entities to remain available with cached data when capabilities
-        are temporarily missing from API responses (e.g., at hour boundaries).
+        We don't require capability_data to exist because:
+        1. After restart, entities may not have capability data in the first update
+        2. API may temporarily not return certain capabilities (e.g., hourly at hour boundaries)
+        3. The entity will show its state (or None) when capability data becomes available
 
-        Note: The capability_data property returns cached data if the capability
-        is temporarily missing, so this check will keep entities available as long
-        as they once had valid data.
+        This prevents entities from becoming permanently unavailable after restart
+        when the first coordinator update doesn't include their capability.
         """
-        if not super().available:
-            return False
-
-        # Entity is available if we have capability data (fresh or cached)
-        return self.capability_data is not None
+        # Entity is available as long as device is online
+        # State will be None if capability_data doesn't exist yet
+        return super().available
 
     @property
     def entity_category(self) -> Optional[EntityCategory]:
