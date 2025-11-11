@@ -1,5 +1,4 @@
 """Test API data models."""
-import pytest
 from datetime import datetime, timezone
 from custom_components.tibber_data.api.models import TibberDevice
 

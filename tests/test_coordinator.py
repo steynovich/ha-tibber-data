@@ -478,7 +478,6 @@ class TestTibberDataCoordinator:
             # Verify first update worked
             assert coordinator.data is not None
             assert device_uuid in coordinator.data["devices"]
-            first_data = coordinator.data.copy()
             first_battery_value = coordinator.data["devices"][device_uuid]["capabilities"][0]["value"]
             assert first_battery_value == 80.0
 

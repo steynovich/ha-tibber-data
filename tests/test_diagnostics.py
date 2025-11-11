@@ -1,5 +1,5 @@
 """Test Tibber Data diagnostics."""
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from homeassistant.core import HomeAssistant
