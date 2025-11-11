@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.46] - 2025-11-11
+
+### Changed
+- **Connectivity Sensor Attributes**: Simplified connectivity sensor attributes to only show `last_seen`
+  - Removed all connectivity-related extra attributes from WiFi and cellular sensors
+  - Connectivity sensors (WiFi, Cellular, etc.) now only display `last_seen` in extra_state_attributes
+  - Cleaner UI with less clutter in entity attribute display
+  - Affects both capability sensors (ENUM sensors in sensor.py) and binary sensors (connectivity attributes)
+  - Example: WiFi connectivity sensor previously showed cellular status, now only shows last_seen
+
+### Technical
+- Modified `TibberDataAttributeEntity.extra_state_attributes` in entity.py to skip adding connectivity attributes
+- Modified `TibberDataAttributeBinarySensor.extra_state_attributes` in binary_sensor.py to skip adding connectivity attributes
+- Updated tests to verify connectivity sensors only have last_seen attribute
+- All 128 tests pass with no breaking changes
+- Maintains firmware sensor attributes (firmware sensors still show related firmware attributes)
+
+### Impact
+- Cleaner entity attribute display for all connectivity sensors
+- No configuration changes required
+- No breaking changes to entity values or availability
+- Only affects extra_state_attributes display
+
 ## [1.0.45] - 2025-11-11
 
 ### Fixed

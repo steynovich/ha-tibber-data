@@ -782,17 +782,8 @@ class TibberDataAttributeEntity(TibberDataDeviceEntity):
 
         # Add contextual information based on attribute type
         if self._attribute_path.startswith("connectivity"):
-            # Add connectivity-related attributes, but only for the same connectivity type
-            # E.g., wifi sensor should only have wifi attributes, not cellular
-            connectivity_type = self._attribute_path.split(".")[-1]  # Get "wifi" or "cellular"
-            for attr in device_data.get("attributes", []):
-                attr_full_name = attr.get("name", "")
-                if attr_full_name.startswith("connectivity"):
-                    # Only add attributes that match this specific connectivity type
-                    if connectivity_type in attr_full_name and attr_full_name != self._attribute_path:
-                        attr_name = attr_full_name.split(".")[-1]  # Get last part of path
-                        key = attr_name.replace("_", " ").lower()
-                        attributes[key] = attr.get("value")
+            # Connectivity sensors don't add extra attributes - only last_seen below
+            pass
 
         elif self._attribute_path.startswith("firmware"):
             # Add firmware-related attributes

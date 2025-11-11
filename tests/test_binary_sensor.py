@@ -240,8 +240,10 @@ class TestTibberDataBinarySensor:
 
         extra_state_attributes = sensor.extra_state_attributes
 
-        # Should include relevant connectivity metadata
+        # Connectivity sensors should only have last_seen attribute
         assert "last_seen" in extra_state_attributes
+        # Should not have any other connectivity-related attributes
+        assert len(extra_state_attributes) == 1
 
     def test_firmware_binary_sensor_attributes(self, mock_coordinator):
         """Test firmware binary sensor extra attributes."""
@@ -258,8 +260,8 @@ class TestTibberDataBinarySensor:
         assert "firmware version" in extra_state_attributes
         assert extra_state_attributes["firmware version"] == "2025.4.1"
 
-    def test_connectivity_attribute_filtering(self):
-        """Test that WiFi connectivity sensors don't show cellular attributes and vice versa."""
+    def test_connectivity_sensors_no_extra_attributes(self):
+        """Test that connectivity sensors don't add connectivity-related extra attributes."""
         # Create mock coordinator with both WiFi and cellular connectivity attributes
         coordinator = MagicMock()
         coordinator.data = {
@@ -314,19 +316,13 @@ class TestTibberDataBinarySensor:
         wifi_attributes = wifi_sensor.extra_state_attributes
         cellular_attributes = cellular_sensor.extra_state_attributes
 
-        # WiFi sensor should NOT have cellular in its extra attributes
-        # Check that none of the attribute keys contain "cellular"
-        wifi_attr_keys_str = " ".join(wifi_attributes.keys()).lower()
-        assert "cellular" not in wifi_attr_keys_str, f"WiFi sensor should not have cellular attributes, but got: {wifi_attributes}"
-
-        # Cellular sensor should NOT have wifi in its extra attributes
-        # Check that none of the attribute keys contain "wifi"
-        cellular_attr_keys_str = " ".join(cellular_attributes.keys()).lower()
-        assert "wifi" not in cellular_attr_keys_str, f"Cellular sensor should not have wifi attributes, but got: {cellular_attributes}"
-
-        # Both should have last_seen (common attribute)
+        # Connectivity sensors should only have last_seen attribute
+        # They shouldn't include cellular, wifi, or any other connectivity-related attributes
         assert "last_seen" in wifi_attributes
+        assert len(wifi_attributes) == 1, f"WiFi sensor should only have last_seen, but got: {wifi_attributes}"
+
         assert "last_seen" in cellular_attributes
+        assert len(cellular_attributes) == 1, f"Cellular sensor should only have last_seen, but got: {cellular_attributes}"
 
     def test_missing_attribute_handling(self, mock_coordinator):
         """Test handling of missing attribute data."""
