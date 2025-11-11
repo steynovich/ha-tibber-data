@@ -203,13 +203,17 @@ class TibberDataAttributeBinarySensor(TibberDataAttributeEntity, BinarySensorEnt
 
         # Add contextual information based on attribute type
         if self._attribute_path.startswith("connectivity"):
-            # Add connectivity-related attributes
+            # Add connectivity-related attributes, but only for the same connectivity type
+            # E.g., wifi sensor should only have wifi attributes, not cellular
+            connectivity_type = self._attribute_path.split(".")[-1]  # Get "wifi" or "cellular"
             for attr in device_data.get("attributes", []):
-                if attr.get("name", "").startswith("connectivity"):
-                    attr_name_parts = attr["name"].split(".")
-                    if len(attr_name_parts) > 1:
-                        attr_name = attr_name_parts[-1]  # Get last part of path
-                        if attr_name != self._attribute_path.split(".")[-1]:  # Don't duplicate the main attribute
+                attr_full_name = attr.get("name", "")
+                if attr_full_name.startswith("connectivity"):
+                    # Only add attributes that match this specific connectivity type
+                    if connectivity_type in attr_full_name and attr_full_name != self._attribute_path:
+                        attr_name_parts = attr_full_name.split(".")
+                        if len(attr_name_parts) > 1:
+                            attr_name = attr_name_parts[-1]  # Get last part of path
                             key = attr_name.replace("_", " ").lower()
                             attributes[key] = attr.get("value")
 

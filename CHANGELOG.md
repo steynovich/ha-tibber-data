@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.45] - 2025-11-11
+
+### Fixed
+- **Connectivity Sensor Attributes**: Fixed WiFi connectivity sensors showing cellular attributes in extra_state_attributes
+  - WiFi connectivity sensors now only show WiFi-related attributes
+  - Cellular connectivity sensors now only show cellular-related attributes
+  - Prevents attribute pollution where connectivity sensors of one type showed attributes from other connectivity types
+  - Example: `connectivity.wifi` sensor no longer shows cellular status in its attributes
+  - Affects all connectivity-type attribute sensors (WiFi, Cellular)
+
+### Technical
+- Enhanced `TibberDataAttributeEntity.extra_state_attributes` property in entity.py
+- Added connectivity type filtering to only include attributes matching the specific connectivity type
+- WiFi sensor (connectivity.wifi) only adds attributes containing "wifi" in the name
+- Cellular sensor (connectivity.cellular) only adds attributes containing "cellular" in the name
+- No changes to entity values or availability - only affects extra_state_attributes display
+- All 127 tests pass with no breaking changes
+
+### Impact
+- Cleaner entity attribute display for connectivity sensors
+- No configuration changes required
+- No breaking changes
+- Improves UX by removing irrelevant attributes from connectivity sensors
+
 ## [1.0.44] - 2025-11-11
 
 ### Added

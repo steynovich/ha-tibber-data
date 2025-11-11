@@ -258,6 +258,76 @@ class TestTibberDataBinarySensor:
         assert "firmware version" in extra_state_attributes
         assert extra_state_attributes["firmware version"] == "2025.4.1"
 
+    def test_connectivity_attribute_filtering(self):
+        """Test that WiFi connectivity sensors don't show cellular attributes and vice versa."""
+        # Create mock coordinator with both WiFi and cellular connectivity attributes
+        coordinator = MagicMock()
+        coordinator.data = {
+            "devices": {
+                "device-connectivity-test": {
+                    "id": "device-connectivity-test",
+                    "name": "HomevoltTEG06",
+                    "type": "BATTERY",
+                    "home_id": "home-456",
+                    "online": True,
+                    "lastSeen": "2025-11-11T10:30:00Z",
+                    "attributes": [
+                        {
+                            "name": "connectivity.wifi",
+                            "displayName": "WiFi Connectivity",
+                            "value": "connected",
+                            "dataType": "string",
+                            "lastUpdated": "2025-11-11T10:30:00Z",
+                            "isDiagnostic": True
+                        },
+                        {
+                            "name": "connectivity.cellular",
+                            "displayName": "Cellular Connectivity",
+                            "value": "unknown",
+                            "dataType": "string",
+                            "lastUpdated": "2025-11-11T10:30:00Z",
+                            "isDiagnostic": True
+                        }
+                    ]
+                }
+            },
+            "homes": {}
+        }
+
+        # Create WiFi connectivity sensor
+        wifi_sensor = TibberDataAttributeBinarySensor(
+            coordinator=coordinator,
+            device_id="device-connectivity-test",
+            attribute_path="connectivity.wifi",
+            attribute_name="WiFi Connectivity"
+        )
+
+        # Create Cellular connectivity sensor
+        cellular_sensor = TibberDataAttributeBinarySensor(
+            coordinator=coordinator,
+            device_id="device-connectivity-test",
+            attribute_path="connectivity.cellular",
+            attribute_name="Cellular Connectivity"
+        )
+
+        # Get extra_state_attributes for both sensors
+        wifi_attributes = wifi_sensor.extra_state_attributes
+        cellular_attributes = cellular_sensor.extra_state_attributes
+
+        # WiFi sensor should NOT have cellular in its extra attributes
+        # Check that none of the attribute keys contain "cellular"
+        wifi_attr_keys_str = " ".join(wifi_attributes.keys()).lower()
+        assert "cellular" not in wifi_attr_keys_str, f"WiFi sensor should not have cellular attributes, but got: {wifi_attributes}"
+
+        # Cellular sensor should NOT have wifi in its extra attributes
+        # Check that none of the attribute keys contain "wifi"
+        cellular_attr_keys_str = " ".join(cellular_attributes.keys()).lower()
+        assert "wifi" not in cellular_attr_keys_str, f"Cellular sensor should not have wifi attributes, but got: {cellular_attributes}"
+
+        # Both should have last_seen (common attribute)
+        assert "last_seen" in wifi_attributes
+        assert "last_seen" in cellular_attributes
+
     def test_missing_attribute_handling(self, mock_coordinator):
         """Test handling of missing attribute data."""
         # Try to create sensor for non-existent attribute
