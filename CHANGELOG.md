@@ -15,11 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Affects both capability sensors (ENUM sensors in sensor.py) and binary sensors (connectivity attributes)
   - Example: WiFi connectivity sensor previously showed cellular status, now only shows last_seen
 
+### Fixed
+- **Code Quality**: Fixed ruff linting issues in test files
+  - Removed unused imports (pytest, AsyncMock, patch)
+  - Removed unused variable assignments
+  - All ruff checks now pass for entire codebase
+
 ### Technical
 - Modified `TibberDataAttributeEntity.extra_state_attributes` in entity.py to skip adding connectivity attributes
 - Modified `TibberDataAttributeBinarySensor.extra_state_attributes` in binary_sensor.py to skip adding connectivity attributes
 - Updated tests to verify connectivity sensors only have last_seen attribute
+- Cleaned up test files to pass ruff linting standards
 - All 128 tests pass with no breaking changes
+- All ruff and mypy checks pass
 - Maintains firmware sensor attributes (firmware sensors still show related firmware attributes)
 
 ### Impact
@@ -27,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - No configuration changes required
 - No breaking changes to entity values or availability
 - Only affects extra_state_attributes display
+- Internal code quality improvements (no user-facing impact)
 
 ## [1.0.45] - 2025-11-11
 
