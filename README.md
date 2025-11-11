@@ -240,6 +240,40 @@ automation:
           message: "EV battery is at {{ states('sensor.tesla_battery_level') }}%"
 ```
 
+## ⚠️ Important: Tibber API Breaking Change (November 2025)
+
+**If you see entities showing "This entity is no longer being provided by the tibber_data integration"**, this is due to a Tibber API change.
+
+### What Changed
+
+Tibber changed how energy flow capabilities are named in their API. The integration works correctly with the new format, but **you need to manually clean up old entities**.
+
+**Old naming** (destination from source):
+- ❌ `energyFlow.hour.load.source.battery` → "Load from Battery (Hour)"
+- ❌ `energyFlow.hour.battery.selfCharged` → "Battery Self-Charge (Hour)"
+
+**New naming** (source to destination):
+- ✅ `energyFlow.hour.battery.source.load` → "Battery from Load (Hour)"
+- ✅ `energyFlow.hour.battery.charged` → "Battery Charged (Hour)"
+
+### How to Fix
+
+1. **Find old entities**: Go to **Settings → Devices & Services → Entities** and search for entities showing:
+   > "This entity is no longer being provided by the tibber_data integration"
+
+2. **Delete old entities**: For each broken entity:
+   - Click on the entity
+   - Click the **trash icon** (🗑️) to delete it
+   - Confirm deletion
+
+3. **Update dashboards and automations**: Replace references to old entity names with new ones.
+
+### Why This Happened
+
+The Tibber API changed the perspective of energy flow reporting. The integration automatically adapts to the new format, but Home Assistant keeps old entities in its registry until you manually delete them.
+
+---
+
 ## Troubleshooting
 
 ### Common Issues

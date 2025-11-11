@@ -5,6 +5,86 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.44] - 2025-11-11
+
+### Added
+- **Home Name Diagnostic Logging**: Added diagnostic logging for home name parsing to troubleshoot device area display issues
+  - Logs show what data is received from Tibber API for home information
+  - Helps diagnose cases where device area shows cached values instead of actual home names
+  - Added logging in `TibberHome.from_api_data()` to show available data keys and parsed names
+
+### Fixed
+- **Device Area Display**: Confirmed home names are correctly parsed from Tibber API
+  - API returns home name at `data['name']` (not `info['name']` as per OpenAPI spec)
+  - Integration correctly retrieves and uses home names
+  - If device shows incorrect area name, this is due to Home Assistant device registry caching
+  - Users can manually update device area in Settings → Devices → Device → Area
+
+### Technical
+- Enhanced `TibberHome.from_api_data()` with WARNING-level logging
+- Logs show: data keys, info keys (if present), and final display name
+- Helps users and developers understand home name parsing behavior
+
+## [1.0.43] - 2025-11-11
+
+### Added
+- **Enhanced Diagnostic Logging**: Added WARNING-level logging throughout integration setup and entity creation
+  - Logs now visible without debug configuration changes
+  - Shows integration setup stages, data fetch status, platform setup progress
+  - Shows entity creation count and individual entity creation success/failure
+  - Helps diagnose "entities no longer provided" issues and setup problems
+
+### Technical
+- Updated `__init__.py` with WARNING-level logging for all setup stages
+- Updated `sensor.py` with entity creation logging and counts
+- Logging shows device processing, entity creation attempts, and final entity counts
+- All diagnostic logs use WARNING level for immediate visibility in Home Assistant logs
+
+## [1.0.42] - 2025-11-11
+
+### Fixed
+- **Entity Registration During Startup**: Fixed entities failing to register when initial coordinator data is incomplete
+  - Changed `async_add_entities(entities, True)` to `async_add_entities(entities, False)`
+  - Entities no longer require successful first update before registration
+  - Prevents "entities no longer provided" errors caused by timing issues during startup
+  - Entities update on next coordinator refresh cycle instead of blocking registration
+  - Critical fix for entities becoming permanently unavailable after Home Assistant restart
+
+### Added
+- **Comprehensive Entity Creation Error Logging**: Added try/except error handling during entity creation
+  - Individual entity creation failures are now logged with full stack traces
+  - Helps diagnose which specific capabilities/attributes fail to create entities
+  - Does not block creation of other entities if one fails
+  - Improves troubleshooting for entity registration issues
+
+### Changed
+- **API Breaking Change Documentation**: Documented Tibber API capability naming change
+  - Tibber changed energy flow capabilities from `load.source.battery` to `battery.source.load`
+  - Old entities will show as "no longer provided" and must be manually deleted
+  - Integration correctly handles new API format and creates entities with updated names
+  - Updated CLAUDE.md and README.md with migration instructions
+  - Examples: "Load from Battery" → "Battery from Load", "Battery Self-Charge" → "Battery Charged"
+
+### Migration Required
+- **⚠️ Tibber API Breaking Change**: If you see entities showing "This entity is no longer being provided":
+  1. Go to Settings → Devices & Services → Entities
+  2. Find entities with "no longer provided" message
+  3. Delete these old entities using the trash icon
+  4. Update dashboards and automations to use new entity names
+  5. See README for detailed migration guide
+
+### Technical
+- Modified `async_add_entities()` call in sensor.py to use `update_before_add=False`
+- Added entity creation error handling with `exc_info=True` for full traceback logging
+- Added WARNING-level logging for entity counts before/after registration
+- Updated integration documentation with API breaking change details
+
+### Impact
+- **All users should upgrade**: Fixes critical entity registration timing issues
+- Entities will properly register even when coordinator data is temporarily incomplete
+- Users with old "no longer provided" entities must manually delete them
+- No automatic migration for renamed entities - manual cleanup required
+
 ## [1.0.41] - 2025-10-14
 
 ### Fixed
