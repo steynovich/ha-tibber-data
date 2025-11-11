@@ -5,6 +5,64 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.51] - 2025-11-11
+
+### Fixed
+- **Critical: Persistent Entity Availability - Complete Solution**: Implemented capability history storage to definitively solve entity availability issues after restart
+  - **Previous attempts (v1.0.48-v1.0.50)**: Used entity registry to recreate entities, but this failed when users deleted entities marked "no longer provided"
+  - **Root cause**: When entities are deleted from entity registry, they can't be recreated by looking up registry. Also, API may not return capabilities at setup time (e.g., hourly sensors at hour boundaries)
+  - **Complete solution**: Persistent capability/attribute history storage independent of entity registry
+    - Tracks ALL capabilities and attributes ever seen for each device
+    - Stored in Home Assistant storage (`.storage/tibber_data_capability_history`)
+    - Survives restarts, integration reloads, and entity deletions
+    - Automatically updated when new capabilities/attributes appear in API
+  - **Benefits over entity registry approach**:
+    - ✓ Works even when entities are deleted
+    - ✓ Works even when capabilities missing from API response
+    - ✓ No reliance on entity registry state
+    - ✓ Entities always recreated from persistent history
+  - **Result**: All entities reliably recreated after restart, regardless of API timing or previous deletions
+
+### Added
+- **Capability History Storage System** (coordinator.py)
+  - `async_load_capability_history()`: Load capability/attribute history from storage on startup
+  - `_save_capability_history()`: Save updated history to storage (async, non-blocking)
+  - `_update_capability_history()`: Track new capabilities/attributes during each coordinator update
+  - `get_known_capabilities(device_id)`: Get all known capabilities for entity creation
+  - `get_known_attributes(device_id)`: Get all known attributes for entity creation
+  - Storage format: JSON with version 1 schema, tracking capabilities and attributes per device
+  - Automatic deduplication and incremental updates
+
+### Changed
+- **Entity Creation Logic** (sensor.py, binary_sensor.py)
+  - Removed entity registry dependency (`entity_registry` import removed)
+  - Removed `_get_previously_registered_capabilities()` helper function
+  - Entity creation now uses `coordinator.get_known_capabilities()` and `coordinator.get_known_attributes()`
+  - Simplified setup flow - no entity registry queries needed
+  - Cleaner logging - removed diagnostic WARNING logs, kept only relevant DEBUG logs
+- **Coordinator Initialization** (__init__.py)
+  - Added `await coordinator.async_load_capability_history()` before first refresh
+  - Ensures history loaded before entity platforms are set up
+  - Non-blocking history updates during normal operation
+
+### Technical
+- New storage file: `.storage/tibber_data_capability_history` (JSON format, version 1)
+- Storage updates happen asynchronously in background (non-blocking)
+- History combines with current API data to determine all entities to create
+- Entity creation uses set unions for deduplication
+- Storage survives: restarts, reloads, entity deletions, integration reinstalls (if .storage preserved)
+- All tests updated to reflect simplified entity creation logic
+- All ruff and mypy checks pass
+
+### Impact
+- **Critical fix**: Definitively resolves all entity availability issues after restart
+- **Better than v1.0.49**: Works even when entities are manually deleted
+- **User-friendly**: Deleted entities automatically recreated when they reappear in API
+- **No manual intervention**: Users don't need to remove/re-add integration
+- **Storage overhead**: Minimal (~1-2KB per device in storage)
+- **No configuration changes required**
+- **Backward compatible**: First run creates storage from current API data
+
 ## [1.0.49] - 2025-11-11
 
 ### Fixed

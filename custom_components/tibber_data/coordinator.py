@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api.client import TibberDataClient
@@ -19,6 +20,10 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Storage constants
+STORAGE_VERSION = 1
+STORAGE_KEY = f"{DOMAIN}_capability_history"
 
 
 class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
@@ -36,6 +41,10 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
         self.client = client
         self.config_entry: ConfigEntry = config_entry
         self.oauth_session = oauth_session
+
+        # Initialize capability history storage
+        self._store = Store[Dict[str, Any]](hass, STORAGE_VERSION, STORAGE_KEY)
+        self._capability_history: Dict[str, Dict[str, Set[str]]] = {}
 
         # Use provided update interval or default
         interval = update_interval or DEFAULT_UPDATE_INTERVAL
@@ -111,6 +120,138 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
 
         return token["access_token"]
 
+    async def async_load_capability_history(self) -> None:
+        """Load capability history from storage."""
+        try:
+            stored_data = await self._store.async_load()
+            if stored_data and "data" in stored_data:
+                # Convert stored lists back to sets
+                self._capability_history = {
+                    device_id: {
+                        "capabilities": set(device_data.get("capabilities", [])),
+                        "attributes": set(device_data.get("attributes", []))
+                    }
+                    for device_id, device_data in stored_data["data"].items()
+                }
+                _LOGGER.debug(
+                    "Loaded capability history for %d devices",
+                    len(self._capability_history)
+                )
+            else:
+                self._capability_history = {}
+                _LOGGER.debug("No capability history found in storage")
+        except Exception as err:
+            _LOGGER.error("Failed to load capability history: %s", err)
+            self._capability_history = {}
+
+    async def _save_capability_history(self) -> None:
+        """Save capability history to storage."""
+        try:
+            # Convert sets to lists for JSON serialization
+            storage_data = {
+                "version": STORAGE_VERSION,
+                "data": {
+                    device_id: {
+                        "capabilities": list(device_data["capabilities"]),
+                        "attributes": list(device_data["attributes"])
+                    }
+                    for device_id, device_data in self._capability_history.items()
+                }
+            }
+            await self._store.async_save(storage_data)
+            _LOGGER.debug("Saved capability history for %d devices", len(self._capability_history))
+        except Exception as err:
+            _LOGGER.error("Failed to save capability history: %s", err)
+
+    def _update_capability_history(self, devices: Dict[str, Any]) -> None:
+        """Update capability history with new capabilities and attributes from current data."""
+        needs_save = False
+
+        for device_id, device_data in devices.items():
+            # Initialize device entry if it doesn't exist
+            if device_id not in self._capability_history:
+                self._capability_history[device_id] = {
+                    "capabilities": set(),
+                    "attributes": set()
+                }
+                needs_save = True
+
+            # Track capabilities
+            current_capabilities = {
+                cap["name"] for cap in device_data.get("capabilities", [])
+            }
+            if current_capabilities:
+                previous_cap_count = len(self._capability_history[device_id]["capabilities"])
+                self._capability_history[device_id]["capabilities"].update(current_capabilities)
+                new_cap_count = len(self._capability_history[device_id]["capabilities"])
+                if new_cap_count > previous_cap_count:
+                    needs_save = True
+                    _LOGGER.debug(
+                        "Device %s: Added %d new capabilities to history (total: %d)",
+                        device_id[:8],
+                        new_cap_count - previous_cap_count,
+                        new_cap_count
+                    )
+
+            # Track attributes
+            current_attributes = {
+                attr["name"] for attr in device_data.get("attributes", [])
+            }
+            if current_attributes:
+                previous_attr_count = len(self._capability_history[device_id]["attributes"])
+                self._capability_history[device_id]["attributes"].update(current_attributes)
+                new_attr_count = len(self._capability_history[device_id]["attributes"])
+                if new_attr_count > previous_attr_count:
+                    needs_save = True
+                    _LOGGER.debug(
+                        "Device %s: Added %d new attributes to history (total: %d)",
+                        device_id[:8],
+                        new_attr_count - previous_attr_count,
+                        new_attr_count
+                    )
+
+        # Save to storage if anything changed (don't await to avoid blocking)
+        if needs_save:
+            self.hass.async_create_task(self._save_capability_history())
+
+    def get_known_capabilities(self, device_id: str) -> Set[str]:
+        """Get all known capability names for a device (from history and current data)."""
+        known = set()
+
+        # Add from history
+        if device_id in self._capability_history:
+            known.update(self._capability_history[device_id]["capabilities"])
+
+        # Add from current data
+        if self.data and DATA_DEVICES in self.data:
+            device_data = self.data[DATA_DEVICES].get(device_id)
+            if device_data:
+                current_capabilities = {
+                    cap["name"] for cap in device_data.get("capabilities", [])
+                }
+                known.update(current_capabilities)
+
+        return known
+
+    def get_known_attributes(self, device_id: str) -> Set[str]:
+        """Get all known attribute names for a device (from history and current data)."""
+        known = set()
+
+        # Add from history
+        if device_id in self._capability_history:
+            known.update(self._capability_history[device_id]["attributes"])
+
+        # Add from current data
+        if self.data and DATA_DEVICES in self.data:
+            device_data = self.data[DATA_DEVICES].get(device_id)
+            if device_data:
+                current_attributes = {
+                    attr["name"] for attr in device_data.get("attributes", [])
+                }
+                known.update(current_attributes)
+
+        return known
+
     async def _async_update_data(self) -> Dict[str, Any]:
         """Fetch data from API endpoint."""
         try:
@@ -180,6 +321,9 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 len(homes),
                 len(devices)
             )
+
+            # Update capability history with new capabilities/attributes
+            self._update_capability_history(devices)
 
             return {
                 DATA_HOMES: homes,

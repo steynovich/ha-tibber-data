@@ -72,6 +72,21 @@ class TestTibberDataSensor:
             }
         }
         coordinator.async_add_listener = MagicMock()
+
+        # Mock get_known_capabilities to return capability names from current data
+        def mock_get_known_capabilities(device_id):
+            """Return all capability names for a device."""
+            device_data = coordinator.data["devices"].get(device_id, {})
+            return {cap["name"] for cap in device_data.get("capabilities", [])}
+
+        # Mock get_known_attributes to return attribute names from current data
+        def mock_get_known_attributes(device_id):
+            """Return all attribute names for a device."""
+            device_data = coordinator.data["devices"].get(device_id, {})
+            return {attr["name"] for attr in device_data.get("attributes", [])}
+
+        coordinator.get_known_capabilities = mock_get_known_capabilities
+        coordinator.get_known_attributes = mock_get_known_attributes
         return coordinator
 
     @pytest.fixture

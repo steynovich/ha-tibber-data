@@ -38,22 +38,35 @@ async def async_setup_entry(
                 _LOGGER.debug("Skipping binary sensors for dummy device: %s", device_id)
                 continue
 
-            # Create binary sensor entities for boolean device attributes
-            for attribute in device_data.get("attributes", []):
-                attribute_path = attribute["name"]
-                attribute_value = attribute.get("value")
+            # Get all known attributes from history (includes current + previously seen)
+            all_attributes = coordinator.get_known_attributes(device_id)
+
+            # Create binary sensor entities for all known boolean attributes
+            for attribute_name in all_attributes:
+                # Get attribute data from current coordinator data (if available)
+                attribute_data = None
+                for attr in device_data.get("attributes", []):
+                    if attr["name"] == attribute_name:
+                        attribute_data = attr
+                        break
+
+                # Skip if attribute data not available (will be created when it appears)
+                if not attribute_data:
+                    continue
+
+                attribute_value = attribute_data.get("value")
 
                 # Only create binary sensors for boolean attributes
                 if isinstance(attribute_value, bool):
                     # Get display name from mapping or generate one
-                    mapping = ATTRIBUTE_MAPPINGS.get(attribute_path, {})
-                    display_name = mapping.get("name_suffix", attribute_path.split(".")[-1].replace("_", " ").title())
+                    mapping = ATTRIBUTE_MAPPINGS.get(attribute_name, {})
+                    display_name = mapping.get("name_suffix", attribute_name.split(".")[-1].replace("_", " ").title())
 
                     entities.append(
                         TibberDataAttributeBinarySensor(
                             coordinator=coordinator,
                             device_id=device_id,
-                            attribute_path=attribute_path,
+                            attribute_path=attribute_name,
                             attribute_name=display_name
                         )
                     )

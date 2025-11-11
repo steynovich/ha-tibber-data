@@ -64,6 +64,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         DATA_OAUTH_SESSION: oauth_session
     }
 
+    # Load capability history from storage before first refresh
+    await coordinator.async_load_capability_history()
+
     # Fetch initial data
     await coordinator.async_config_entry_first_refresh()
 

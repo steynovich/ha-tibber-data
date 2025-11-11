@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 from homeassistant.components.sensor import (
     SensorEntity,
@@ -12,7 +12,6 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -21,62 +20,6 @@ from .coordinator import TibberDataUpdateCoordinator
 from .entity import TibberDataCapabilityEntity, TibberDataAttributeEntity
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _get_previously_registered_capabilities(
-    hass: HomeAssistant,
-    device_id: str,
-) -> Set[str]:
-    """Get capability names for entities that were previously registered for this device.
-
-    This ensures we recreate all entities that existed before, even if their
-    capabilities aren't in the current API response (e.g., hourly sensors at hour boundaries).
-    """
-    registry = er.async_get(hass)
-    capability_names: Set[str] = set()
-
-    # Prefix for capability sensor unique_ids
-    unique_id_prefix = f"tibber_data_{device_id}_"
-
-    _LOGGER.warning(
-        "Looking for previously registered sensors with prefix: %s",
-        unique_id_prefix[:50]  # Show first 50 chars
-    )
-
-    # Find all sensor entities for this device that were previously registered
-    found_count = 0
-    for entity_id, entry in registry.entities.items():
-        # Check if this entity belongs to our integration and this device
-        if (entry.platform == DOMAIN and
-            entry.domain == "sensor" and
-            entry.unique_id.startswith(unique_id_prefix)):
-
-            found_count += 1
-
-            # Extract capability name from unique_id
-            # Format: tibber_data_{device_id}_{capability_name}
-            # Capability name is everything after the prefix
-            capability_name = entry.unique_id[len(unique_id_prefix):]
-
-            # Skip attribute sensors (they have underscores from path replacement)
-            # Capability names use dots, attribute names have dots replaced with underscores
-            # Actually, this isn't reliable since capability names can also have dots/underscores
-            # Better: Just include everything and let entity creation handle it
-
-            capability_names.add(capability_name)
-            _LOGGER.warning(
-                "Found previously registered: entity_id=%s, capability=%s",
-                entity_id,
-                capability_name[:50]  # Truncate long names
-            )
-
-    _LOGGER.warning(
-        "Device %s: Found %d previously registered sensor entities",
-        device_id[:8],
-        found_count
-    )
-
-    return capability_names
 
 
 async def async_setup_entry(
@@ -90,11 +33,11 @@ async def async_setup_entry(
     entities: List[SensorEntity] = []
 
     if not coordinator.data:
-        _LOGGER.error("Coordinator has no data during sensor setup!")
+        _LOGGER.warning("Coordinator has no data during sensor setup!")
         return
 
     if "devices" not in coordinator.data:
-        _LOGGER.error("Coordinator data has no 'devices' key! Keys: %s", list(coordinator.data.keys()))
+        _LOGGER.warning("Coordinator data has no 'devices' key! Keys: %s", list(coordinator.data.keys()))
         return
 
     if coordinator.data and "devices" in coordinator.data:
@@ -105,34 +48,18 @@ async def async_setup_entry(
                 _LOGGER.debug("Skipping sensors for dummy device: %s", device_id)
                 continue
 
-            # Get currently available capabilities
-            current_capabilities: Set[str] = set()
-            for capability in device_data.get("capabilities", []):
-                current_capabilities.add(capability["name"])
-
-            # Get previously registered capabilities from entity registry
+            # Get all known capabilities from history (includes current + previously seen)
             # This ensures we recreate entities even if their capability isn't
             # in the current API response (e.g., hourly sensors at hour boundaries)
-            previously_registered = _get_previously_registered_capabilities(hass, device_id)
+            all_capabilities = coordinator.get_known_capabilities(device_id)
 
-            # Combine current and previously registered capabilities
-            all_capabilities = current_capabilities | previously_registered
-
-            _LOGGER.warning(
-                "Device %s: current=%d, previously_registered=%d, total=%d capabilities",
+            _LOGGER.debug(
+                "Device %s: Creating sensors for %d known capabilities",
                 device_id[:8],
-                len(current_capabilities),
-                len(previously_registered),
                 len(all_capabilities)
             )
-            if previously_registered:
-                _LOGGER.warning(
-                    "Previously registered capabilities for %s: %s",
-                    device_id[:8],
-                    sorted(list(previously_registered))[:5]  # Show first 5
-                )
 
-            # Create sensor entities for all capabilities
+            # Create sensor entities for all known capabilities
             for capability_name in all_capabilities:
                 try:
                     entity = TibberDataCapabilitySensor(
@@ -150,9 +77,23 @@ async def async_setup_entry(
                         exc_info=True
                     )
 
-            # Create sensor entities for non-boolean device attributes
-            for attribute in device_data.get("attributes", []):
-                attribute_value = attribute.get("value")
+            # Get all known attributes from history (includes current + previously seen)
+            all_attributes = coordinator.get_known_attributes(device_id)
+
+            # Create sensor entities for all known non-boolean attributes
+            for attribute_name in all_attributes:
+                # Get attribute data from current coordinator data (if available)
+                attribute_data = None
+                for attr in device_data.get("attributes", []):
+                    if attr["name"] == attribute_name:
+                        attribute_data = attr
+                        break
+
+                # Skip if attribute data not available (will be created when it appears)
+                if not attribute_data:
+                    continue
+
+                attribute_value = attribute_data.get("value")
 
                 # Skip boolean attributes (handled by binary_sensor platform)
                 if isinstance(attribute_value, bool):
@@ -160,21 +101,19 @@ async def async_setup_entry(
 
                 # Create sensor for string/numeric attributes
                 if isinstance(attribute_value, (str, int, float)):
-                    attribute_path = attribute["name"]
-
                     # Check for custom display name in mappings first
-                    mapping = ATTRIBUTE_MAPPINGS.get(attribute_path, {})
+                    mapping = ATTRIBUTE_MAPPINGS.get(attribute_name, {})
                     display_name = mapping.get("name_suffix")
 
                     # Fall back to API displayName or attribute name
                     if not display_name:
-                        display_name = attribute.get("displayName", attribute_path)
+                        display_name = attribute_data.get("displayName", attribute_name)
 
                     entities.append(
                         TibberDataAttributeSensor(
                             coordinator=coordinator,
                             device_id=device_id,
-                            attribute_path=attribute_path,
+                            attribute_path=attribute_name,
                             attribute_name=display_name
                         )
                     )
@@ -183,8 +122,9 @@ async def async_setup_entry(
         # Set update_before_add=False to avoid entity creation failures due to temporary data issues
         # Entities will update on the next coordinator refresh
         async_add_entities(entities, False)
+        _LOGGER.debug("Created %d sensor entities", len(entities))
     else:
-        _LOGGER.error("No entities were created!")
+        _LOGGER.warning("No sensor entities were created")
 
 
 class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
