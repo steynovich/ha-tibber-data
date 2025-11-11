@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.53] - 2025-11-11
+
+### Fixed
+- **Diagnostic Service**: Fixed `get_capability_history` service to show full device_id instead of truncated version
+  - Previous version truncated device_id to 16 characters, making it impossible to use for the detailed query
+  - Now shows complete device_id in logs when called without parameters
+  - Users can copy the full device_id and use it to query specific device details
+
 ## [1.0.52] - 2025-11-11
 
 ### Added

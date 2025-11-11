@@ -134,8 +134,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         capabilities = coordinator.get_known_capabilities(device_id)
                         attributes = coordinator.get_known_attributes(device_id)
                         _LOGGER.warning(
-                            "Device %s: %d capabilities, %d attributes",
-                            device_id[:16],
+                            "Device ID (full): %s",
+                            device_id
+                        )
+                        _LOGGER.warning(
+                            "  └─ %d capabilities, %d attributes",
                             len(capabilities),
                             len(attributes)
                         )
