@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.47] - 2025-11-11
+
+### Changed
+- **Logging Cleanup**: Removed temporary diagnostic WARNING logs added for troubleshooting
+  - Removed diagnostic logs from `__init__.py` (setup stages, platform loading)
+  - Removed diagnostic logs from `sensor.py` (entity creation, count tracking)
+  - Removed diagnostic logs from `api/models.py` (home name parsing)
+  - Kept legitimate WARNING logs for actual error conditions (auth failures, rate limits, network errors)
+  - Cleaner log output with less noise during normal operation
+
+### Technical
+- Removed 10+ temporary diagnostic WARNING logs across 3 files
+- Maintained ERROR-level logs for genuine problems
+- Maintained WARNING logs for legitimate warning conditions (rate limiting, auth issues, network failures)
+- All 128 tests pass with no breaking changes
+- All ruff and mypy checks pass
+
+### Impact
+- Cleaner log files with less noise
+- Easier to identify actual issues in logs
+- No functional changes to integration behavior
+- No configuration changes required
+
 ## [1.0.46] - 2025-11-11
 
 ### Changed

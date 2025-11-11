@@ -28,8 +28,6 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Tibber Data sensor entities."""
-    _LOGGER.warning("Setting up Tibber Data sensor platform - START")
-
     coordinator: TibberDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id][DATA_COORDINATOR]
 
     entities: List[SensorEntity] = []
@@ -41,12 +39,6 @@ async def async_setup_entry(
     if "devices" not in coordinator.data:
         _LOGGER.error("Coordinator data has no 'devices' key! Keys: %s", list(coordinator.data.keys()))
         return
-
-    _LOGGER.warning(
-        "Coordinator data available: %d homes, %d devices",
-        len(coordinator.data.get("homes", {})),
-        len(coordinator.data.get("devices", {}))
-    )
 
     if coordinator.data and "devices" in coordinator.data:
         for device_id, device_data in coordinator.data["devices"].items():
@@ -66,11 +58,6 @@ async def async_setup_entry(
                         capability_name=capability_name
                     )
                     entities.append(entity)
-                    _LOGGER.warning(
-                        "Created sensor entity for %s capability '%s'",
-                        device_id[:8],
-                        capability_name
-                    )
                 except Exception as err:
                     _LOGGER.error(
                         "Failed to create sensor entity for %s capability '%s': %s",
@@ -109,19 +96,10 @@ async def async_setup_entry(
                         )
                     )
 
-    _LOGGER.warning("Total entities created: %d", len(entities))
-
     if entities:
-        _LOGGER.warning(
-            "Adding %d sensor entities (%d devices processed)",
-            len(entities),
-            len([d for d in coordinator.data.get("devices", {}).values()
-                 if d.get("name", "").strip().lower() != "dummy"])
-        )
         # Set update_before_add=False to avoid entity creation failures due to temporary data issues
         # Entities will update on the next coordinator refresh
         async_add_entities(entities, False)
-        _LOGGER.warning("Successfully added %d sensor entities", len(entities))
     else:
         _LOGGER.error("No entities were created!")
 

@@ -143,20 +143,8 @@ class TibberHome:
     @classmethod
     def from_api_data(cls, data: Dict[str, Any]) -> Self:
         """Create TibberHome from API response data."""
-        import logging
-        _LOGGER = logging.getLogger(__name__)
-
         home_id = data["id"]
         info = data.get("info", {})
-
-        # Debug: Log what we're getting from API
-        _LOGGER.warning(
-            "Parsing home %s: data keys=%s, info keys=%s, info.name=%s",
-            home_id[:8],
-            list(data.keys()),
-            list(info.keys()) if info else "NO INFO",
-            info.get("name") if info else "NO INFO"
-        )
 
         # Try multiple possible locations for the home name
         # The API returns name at root level, not in info.name as documented
@@ -167,8 +155,6 @@ class TibberHome:
             data.get("displayName") or    # Alternative: displayName at root
             f"Tibber Home {home_id[:8]}"  # Fallback to ID
         )
-
-        _LOGGER.warning("Home %s final display_name: %s", home_id[:8], display_name)
 
         return cls(
             home_id=home_id,
