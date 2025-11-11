@@ -34,6 +34,7 @@ SERVICE_REFRESH_SCHEMA = vol.Schema({
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Tibber Data from a config entry."""
+    _LOGGER.warning("=== TIBBER DATA INTEGRATION SETUP START ===")
     _LOGGER.info(STARTUP_MESSAGE)
 
     # Initialize aiohttp session
@@ -65,14 +66,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     }
 
     # Fetch initial data
+    _LOGGER.warning("Fetching initial data from API...")
     await coordinator.async_config_entry_first_refresh()
+    _LOGGER.warning("Initial data fetch complete")
 
     # Register devices in device registry first (before platforms)
     # This ensures hub devices exist before entities try to reference them
     await _async_register_devices(hass, coordinator, entry)
 
     # Set up platforms
+    _LOGGER.warning("Setting up platforms: %s", PLATFORMS)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    _LOGGER.warning("=== TIBBER DATA INTEGRATION SETUP COMPLETE ===")
 
     # Register cleanup listener
     entry.async_on_unload(
