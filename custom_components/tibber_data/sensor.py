@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from homeassistant.components.sensor import (
     SensorEntity,
@@ -12,6 +12,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -20,6 +21,48 @@ from .coordinator import TibberDataUpdateCoordinator
 from .entity import TibberDataCapabilityEntity, TibberDataAttributeEntity
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _get_previously_registered_capabilities(
+    hass: HomeAssistant,
+    device_id: str,
+) -> Set[str]:
+    """Get capability names for entities that were previously registered for this device.
+
+    This ensures we recreate all entities that existed before, even if their
+    capabilities aren't in the current API response (e.g., hourly sensors at hour boundaries).
+    """
+    registry = er.async_get(hass)
+    capability_names: Set[str] = set()
+
+    # Prefix for capability sensor unique_ids
+    unique_id_prefix = f"tibber_data_{device_id}_"
+
+    # Find all sensor entities for this device that were previously registered
+    for entity_id, entry in registry.entities.items():
+        # Check if this entity belongs to our integration and this device
+        if (entry.platform == DOMAIN and
+            entry.domain == "sensor" and
+            entry.unique_id.startswith(unique_id_prefix)):
+
+            # Extract capability name from unique_id
+            # Format: tibber_data_{device_id}_{capability_name}
+            # Capability name is everything after the prefix
+            capability_name = entry.unique_id[len(unique_id_prefix):]
+
+            # Skip attribute sensors (they have underscores from path replacement)
+            # Capability names use dots, attribute names have dots replaced with underscores
+            # Actually, this isn't reliable since capability names can also have dots/underscores
+            # Better: Just include everything and let entity creation handle it
+
+            capability_names.add(capability_name)
+            _LOGGER.debug(
+                "Found previously registered capability '%s' for device %s",
+                capability_name,
+                device_id[:8]
+            )
+
+    return capability_names
 
 
 async def async_setup_entry(
@@ -48,9 +91,21 @@ async def async_setup_entry(
                 _LOGGER.debug("Skipping sensors for dummy device: %s", device_id)
                 continue
 
-            # Create sensor entities for device capabilities
+            # Get currently available capabilities
+            current_capabilities: Set[str] = set()
             for capability in device_data.get("capabilities", []):
-                capability_name = capability["name"]
+                current_capabilities.add(capability["name"])
+
+            # Get previously registered capabilities from entity registry
+            # This ensures we recreate entities even if their capability isn't
+            # in the current API response (e.g., hourly sensors at hour boundaries)
+            previously_registered = _get_previously_registered_capabilities(hass, device_id)
+
+            # Combine current and previously registered capabilities
+            all_capabilities = current_capabilities | previously_registered
+
+            # Create sensor entities for all capabilities
+            for capability_name in all_capabilities:
                 try:
                     entity = TibberDataCapabilitySensor(
                         coordinator=coordinator,

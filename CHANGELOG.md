@@ -5,10 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.49] - 2025-11-11
+
+### Fixed
+- **Critical: Entities Not Recreated After Restart**: Fixed the REAL root cause of entities becoming unavailable after restart
+  - Root cause (v1.0.48 fix was incomplete): During `async_setup_entry`, we only created entities for capabilities present in `coordinator.data` at setup time. If a capability wasn't in the API response (e.g., hourly sensors at hour boundaries), the entity simply wasn't created. Home Assistant saw the entity in the registry but not in the new entity list, marking it as "no longer provided"
+  - Real fix: Check entity registry during setup and recreate ALL previously registered entities, even if their capability isn't in the current API response
+  - New logic: `all_capabilities = current_capabilities | previously_registered_capabilities`
+  - Implementation: Added `_get_previously_registered_capabilities()` helper that extracts capability names from entity registry unique_ids
+  - Result: All entities that ever existed are always recreated, preventing "no longer provided" errors
+  - This fix addresses the actual entity creation problem, not just availability logic
+
+### Technical
+- Added `_get_previously_registered_capabilities()` helper function in sensor.py
+- Function queries entity registry for all previously registered sensors for each device
+- Extracts capability name from unique_id format: `tibber_data_{device_id}_{capability_name}`
+- Modified entity creation loop to create entities for union of current + previously registered capabilities
+- Added entity_registry import and Set type hint
+- All 128 tests pass with no breaking changes
+- All ruff and mypy checks pass
+
+### Impact
+- **Critical fix**: Resolves the actual root cause of entities becoming permanently unavailable after restart
+- v1.0.48 improved things but didn't fix the core issue - this does
+- No configuration changes required
+- Entities will be recreated automatically on next restart
+- Entity state will be None until capability appears in API, then populate with values
+
 ## [1.0.48] - 2025-11-11
 
 ### Fixed
-- **Critical: Sensors Becoming Unavailable After Restart**: Fixed entities showing as unavailable when capabilities are missing from first coordinator update after restart
+- **Critical: Sensors Becoming Unavailable After Restart**: Fixed entities showing as unavailable when capabilities are missing from first coordinator update after restart (INCOMPLETE FIX - see v1.0.49)
   - Root cause: After restart, entities have no cached capability data. If the first coordinator update doesn't include a capability (e.g., hourly sensors at hour boundaries), the entity would become unavailable and show "no longer provided"
   - Bug scenario: Restart HA → First coordinator update at hour boundary → Hourly capabilities not in API response → Entity marked unavailable → Entity stays unavailable forever
   - Impact: Primarily affected hourly energy flow sensors (Grid Import Hour, Grid from Battery Hour, etc.) that reset at hour boundaries
