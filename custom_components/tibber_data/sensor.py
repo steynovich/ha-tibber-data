@@ -43,13 +43,26 @@ async def async_setup_entry(
             # Create sensor entities for device capabilities
             for capability in device_data.get("capabilities", []):
                 capability_name = capability["name"]
-                entities.append(
-                    TibberDataCapabilitySensor(
+                try:
+                    entity = TibberDataCapabilitySensor(
                         coordinator=coordinator,
                         device_id=device_id,
                         capability_name=capability_name
                     )
-                )
+                    entities.append(entity)
+                    _LOGGER.debug(
+                        "Created sensor entity for %s capability '%s'",
+                        device_id[:8],
+                        capability_name
+                    )
+                except Exception as err:
+                    _LOGGER.error(
+                        "Failed to create sensor entity for %s capability '%s': %s",
+                        device_id[:8],
+                        capability_name,
+                        err,
+                        exc_info=True
+                    )
 
             # Create sensor entities for non-boolean device attributes
             for attribute in device_data.get("attributes", []):
@@ -81,8 +94,16 @@ async def async_setup_entry(
                     )
 
     if entities:
-        async_add_entities(entities, True)
-        _LOGGER.debug("Added %d sensor entities", len(entities))
+        _LOGGER.info(
+            "Adding %d sensor entities (%d devices processed)",
+            len(entities),
+            len([d for d in coordinator.data.get("devices", {}).values()
+                 if d.get("name", "").strip().lower() != "dummy"])
+        )
+        # Set update_before_add=False to avoid entity creation failures due to temporary data issues
+        # Entities will update on the next coordinator refresh
+        async_add_entities(entities, False)
+        _LOGGER.info("Successfully added %d sensor entities", len(entities))
 
 
 class TibberDataCapabilitySensor(TibberDataCapabilityEntity, SensorEntity):
