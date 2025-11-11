@@ -60,6 +60,7 @@ async def async_setup_entry(
             )
 
             # Create sensor entities for all known capabilities
+            # Note: Create entities even if data not currently available - they'll show None until data appears
             for capability_name in all_capabilities:
                 try:
                     entity = TibberDataCapabilitySensor(
@@ -81,6 +82,8 @@ async def async_setup_entry(
             all_attributes = coordinator.get_known_attributes(device_id)
 
             # Create sensor entities for all known non-boolean attributes
+            # Note: Only create if we've seen the attribute with actual data at least once
+            # This prevents creating sensors for boolean attributes that we don't have type info for
             for attribute_name in all_attributes:
                 # Get attribute data from current coordinator data (if available)
                 attribute_data = None
@@ -89,8 +92,12 @@ async def async_setup_entry(
                         attribute_data = attr
                         break
 
-                # Skip if attribute data not available (will be created when it appears)
+                # For attributes, we need to check the current data to determine type
+                # because we don't want to create sensors for boolean attributes
                 if not attribute_data:
+                    # If not in current data, check if it's in history and was previously non-boolean
+                    # For now, skip - will be created when it next appears in API
+                    # TODO: Store attribute types in history to avoid this limitation
                     continue
 
                 attribute_value = attribute_data.get("value")

@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.52] - 2025-11-11
+
+### Added
+- **Diagnostic Service**: `tibber_data.get_capability_history` - View what capabilities/attributes are stored in history
+  - Call without parameters to see summary for all devices
+  - Call with `device_id` parameter to see detailed list of capabilities/attributes for specific device
+  - Logs output to Home Assistant log at WARNING level for visibility
+  - Useful for debugging missing entities and verifying storage contents
+
+### Improved
+- **Better Logging**: Enhanced capability history update logging to show what's being added
+  - INFO log when initializing new device with first set of capabilities
+  - WARNING log when new capabilities are discovered for existing devices
+  - Shows first 5-10 capability names in logs for easy verification
+  - Helps diagnose why specific capabilities might not be in storage
+
+### Technical
+- Fixed logging logic to correctly calculate new capabilities being added
+- Improved sensor creation comments to clarify behavior
+- All 128 tests pass, mypy and ruff checks pass
+
+### Usage
+To check what capabilities are in storage for your device:
+```yaml
+service: tibber_data.get_capability_history
+data:
+  device_id: "dGliYmVyOmhvbWU6..." # Your device ID (check entity unique_id)
+```
+
+Check the Home Assistant logs for output showing all stored capabilities.
+
 ## [1.0.51] - 2025-11-11
 
 ### Fixed

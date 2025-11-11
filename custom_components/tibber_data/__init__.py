@@ -31,6 +31,11 @@ SERVICE_REFRESH_SCHEMA = vol.Schema({
     vol.Optional("config_entry_id"): cv.string,
 })
 
+SERVICE_GET_CAPABILITY_HISTORY = "get_capability_history"
+SERVICE_GET_CAPABILITY_HISTORY_SCHEMA = vol.Schema({
+    vol.Optional("device_id"): cv.string,
+})
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Tibber Data from a config entry."""
@@ -103,11 +108,52 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     await coordinator.async_request_refresh()
                 _LOGGER.info("Refreshed all Tibber Data config entries")
 
+        async def async_handle_get_capability_history(call: ServiceCall) -> None:
+            """Handle the get_capability_history service call."""
+            device_id_filter = call.data.get("device_id")
+
+            # Get first coordinator (or use config_entry_id if provided in future)
+            for entry_id, entry_data in hass.data[DOMAIN].items():
+                coordinator = entry_data[DATA_COORDINATOR]
+
+                if device_id_filter:
+                    # Show history for specific device
+                    capabilities = coordinator.get_known_capabilities(device_id_filter)
+                    attributes = coordinator.get_known_attributes(device_id_filter)
+                    _LOGGER.warning(
+                        "Device %s capability history: %d capabilities, %d attributes",
+                        device_id_filter[:16],
+                        len(capabilities),
+                        len(attributes)
+                    )
+                    _LOGGER.warning("Capabilities: %s", sorted(list(capabilities))[:20])  # Show first 20
+                    _LOGGER.warning("Attributes: %s", sorted(list(attributes))[:20])
+                else:
+                    # Show history for all devices
+                    for device_id in coordinator._capability_history.keys():
+                        capabilities = coordinator.get_known_capabilities(device_id)
+                        attributes = coordinator.get_known_attributes(device_id)
+                        _LOGGER.warning(
+                            "Device %s: %d capabilities, %d attributes",
+                            device_id[:16],
+                            len(capabilities),
+                            len(attributes)
+                        )
+
+                break  # Only use first coordinator
+
         hass.services.async_register(
             DOMAIN,
             SERVICE_REFRESH,
             async_handle_refresh,
             schema=SERVICE_REFRESH_SCHEMA,
+        )
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_GET_CAPABILITY_HISTORY,
+            async_handle_get_capability_history,
+            schema=SERVICE_GET_CAPABILITY_HISTORY_SCHEMA,
         )
 
     return True

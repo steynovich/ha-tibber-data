@@ -169,29 +169,43 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
 
         for device_id, device_data in devices.items():
             # Initialize device entry if it doesn't exist
-            if device_id not in self._capability_history:
+            is_new_device = device_id not in self._capability_history
+            if is_new_device:
                 self._capability_history[device_id] = {
                     "capabilities": set(),
                     "attributes": set()
                 }
                 needs_save = True
+                _LOGGER.info("Initializing capability history for new device: %s", device_id[:16])
 
             # Track capabilities
             current_capabilities = {
                 cap["name"] for cap in device_data.get("capabilities", [])
             }
             if current_capabilities:
-                previous_cap_count = len(self._capability_history[device_id]["capabilities"])
+                previous_capabilities = self._capability_history[device_id]["capabilities"].copy()
                 self._capability_history[device_id]["capabilities"].update(current_capabilities)
                 new_cap_count = len(self._capability_history[device_id]["capabilities"])
+                previous_cap_count = len(previous_capabilities)
                 if new_cap_count > previous_cap_count:
                     needs_save = True
-                    _LOGGER.debug(
-                        "Device %s: Added %d new capabilities to history (total: %d)",
-                        device_id[:8],
-                        new_cap_count - previous_cap_count,
-                        new_cap_count
-                    )
+                    new_caps = self._capability_history[device_id]["capabilities"] - previous_capabilities
+                    if is_new_device:
+                        # Log all capabilities for new device
+                        _LOGGER.info(
+                            "Device %s: Initialized with %d capabilities: %s...",
+                            device_id[:16],
+                            new_cap_count,
+                            sorted(list(new_caps))[:5]  # Show first 5
+                        )
+                    else:
+                        _LOGGER.warning(
+                            "Device %s: Added %d new capabilities to history (total: %d). New: %s",
+                            device_id[:8],
+                            new_cap_count - previous_cap_count,
+                            new_cap_count,
+                            sorted(list(new_caps))[:10]  # Show first 10 new capabilities
+                        )
 
             # Track attributes
             current_attributes = {
