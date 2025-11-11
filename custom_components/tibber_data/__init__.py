@@ -120,14 +120,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     # Show history for specific device
                     capabilities = coordinator.get_known_capabilities(device_id_filter)
                     attributes = coordinator.get_known_attributes(device_id_filter)
+                    capabilities_list = sorted(list(capabilities))
+
                     _LOGGER.warning(
                         "Device %s capability history: %d capabilities, %d attributes",
                         device_id_filter[:16],
                         len(capabilities),
                         len(attributes)
                     )
-                    _LOGGER.warning("Capabilities: %s", sorted(list(capabilities))[:20])  # Show first 20
-                    _LOGGER.warning("Attributes: %s", sorted(list(attributes))[:20])
+
+                    # Show capabilities in groups of 50
+                    for i in range(0, len(capabilities_list), 50):
+                        _LOGGER.warning("Capabilities [%d-%d]: %s", i, min(i+50, len(capabilities_list)), capabilities_list[i:i+50])
+
+                    _LOGGER.warning("Attributes: %s", sorted(list(attributes)))
+
+                    # Search for specific patterns
+                    hour_caps = [c for c in capabilities_list if '.hour.' in c]
+                    battery_grid_caps = [c for c in capabilities_list if 'battery' in c and 'grid' in c]
+                    _LOGGER.warning("Hour capabilities (%d): %s", len(hour_caps), hour_caps)
+                    _LOGGER.warning("Battery+Grid capabilities (%d): %s", len(battery_grid_caps), battery_grid_caps)
                 else:
                     # Show history for all devices
                     for device_id in coordinator._capability_history.keys():

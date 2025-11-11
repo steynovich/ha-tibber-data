@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.54] - 2025-11-11
+
+### Improved
+- **Diagnostic Service**: Enhanced `get_capability_history` to show ALL capabilities and add smart filtering
+  - Shows all capabilities in groups of 50 (previously limited to first 20)
+  - Automatically filters and shows hourly capabilities (contains ".hour.")
+  - Automatically filters and shows battery+grid capabilities
+  - Makes it easy to verify if specific capability is in storage
+
 ## [1.0.53] - 2025-11-11
 
 ### Fixed
