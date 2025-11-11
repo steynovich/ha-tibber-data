@@ -38,12 +38,20 @@ def _get_previously_registered_capabilities(
     # Prefix for capability sensor unique_ids
     unique_id_prefix = f"tibber_data_{device_id}_"
 
+    _LOGGER.warning(
+        "Looking for previously registered sensors with prefix: %s",
+        unique_id_prefix[:50]  # Show first 50 chars
+    )
+
     # Find all sensor entities for this device that were previously registered
+    found_count = 0
     for entity_id, entry in registry.entities.items():
         # Check if this entity belongs to our integration and this device
         if (entry.platform == DOMAIN and
             entry.domain == "sensor" and
             entry.unique_id.startswith(unique_id_prefix)):
+
+            found_count += 1
 
             # Extract capability name from unique_id
             # Format: tibber_data_{device_id}_{capability_name}
@@ -56,11 +64,17 @@ def _get_previously_registered_capabilities(
             # Better: Just include everything and let entity creation handle it
 
             capability_names.add(capability_name)
-            _LOGGER.debug(
-                "Found previously registered capability '%s' for device %s",
-                capability_name,
-                device_id[:8]
+            _LOGGER.warning(
+                "Found previously registered: entity_id=%s, capability=%s",
+                entity_id,
+                capability_name[:50]  # Truncate long names
             )
+
+    _LOGGER.warning(
+        "Device %s: Found %d previously registered sensor entities",
+        device_id[:8],
+        found_count
+    )
 
     return capability_names
 
@@ -103,6 +117,20 @@ async def async_setup_entry(
 
             # Combine current and previously registered capabilities
             all_capabilities = current_capabilities | previously_registered
+
+            _LOGGER.warning(
+                "Device %s: current=%d, previously_registered=%d, total=%d capabilities",
+                device_id[:8],
+                len(current_capabilities),
+                len(previously_registered),
+                len(all_capabilities)
+            )
+            if previously_registered:
+                _LOGGER.warning(
+                    "Previously registered capabilities for %s: %s",
+                    device_id[:8],
+                    sorted(list(previously_registered))[:5]  # Show first 5
+                )
 
             # Create sensor entities for all capabilities
             for capability_name in all_capabilities:
